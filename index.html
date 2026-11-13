@@ -858,6 +858,137 @@ function buildSnow(g){
   };
 }
 
+// ---- Christmas Village: a giant tree, twinkling lights, presents and snow ----
+function buildXmas(g){
+  const snowM = new THREE.MeshStandardMaterial({color:col(0xf4f8ff), roughness:0.9});
+  const pineM = new THREE.MeshStandardMaterial({color:col(0x1d4a30), roughness:0.85, flatShading:true});
+  const barkM = new THREE.MeshStandardMaterial({color:col(0x4a3426), roughness:0.9});
+  const BULBS = [0xff3b3b, 0x3bff6a, 0xffd23f, 0x3ab0ff, 0xff7ad8];
+  // --- the giant Christmas tree ---
+  const TP = new V3(0, 0, 52), TH = 46, TR = 15;
+  const tree = new THREE.Group(); tree.position.copy(TP); g.add(tree);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2, 6, 10), barkM); trunk.position.y = 3; tree.add(trunk);
+  for (let k=0;k<7;k++){
+    const y0 = 4 + k*5.6, r = TR*(1 - k/7.5), cone = new THREE.Mesh(new THREE.ConeGeometry(r, 10, 14), pineM);
+    cone.position.y = y0 + 5; cone.castShadow = true; tree.add(cone);
+    const rim = new THREE.Mesh(new THREE.ConeGeometry(r*0.55, 3, 14), snowM); rim.position.y = y0 + 8.6; tree.add(rim);
+  }
+  const shape = new THREE.Shape();
+  for (let i=0;i<10;i++){ const rr = i % 2 ? 1.2 : 3, a = i/10*Math.PI*2 + Math.PI/2; const x = Math.cos(a)*rr, y = Math.sin(a)*rr; if (i) shape.lineTo(x, y); else shape.moveTo(x, y); }
+  const star = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {depth:0.7, bevelEnabled:false}), new THREE.MeshBasicMaterial({color:col(0xffd23f), toneMapped:false}));
+  star.position.set(0, TH + 3, -0.35); tree.add(star);
+  const starGlow = glowSprite(0xffd23f, 16, 0.7); starGlow.position.set(0, TH + 3, 0); tree.add(starGlow);
+  const conePoint = (u, a, out=0) => { const y = 5 + u*(TH - 5), r = TR*(1 - (y - 4)/(7.5*5.6))*0.92 + out; return new V3(Math.cos(a)*r, y, Math.sin(a)*r); };
+  const dummy = new THREE.Object3D();
+  // ornaments
+  const NO = 130, orn = new THREE.InstancedMesh(new THREE.SphereGeometry(0.75, 12, 10), new THREE.MeshStandardMaterial({roughness:0.2, metalness:0.7}), NO);
+  const ORN = [0xd8263a, 0xffc93a, 0x3a7bd5, 0xe8e8f0, 0x9a3ad5];
+  for (let i=0;i<NO;i++){ dummy.position.copy(conePoint(Math.random()*0.92, Math.random()*Math.PI*2, 0.4)); dummy.scale.setScalar(rand(0.7, 1.3)); dummy.updateMatrix(); orn.setMatrixAt(i, dummy.matrix); orn.setColorAt(i, col(ORN[i % ORN.length])); }
+  tree.add(orn);
+  // twinkling lights in a spiral
+  const NL = 260, lights = new THREE.InstancedMesh(new THREE.SphereGeometry(0.32, 6, 5), new THREE.MeshBasicMaterial({toneMapped:false}), NL);
+  const lightCols = [];
+  for (let i=0;i<NL;i++){ const u = i/NL; dummy.position.copy(conePoint(u*0.95, u*Math.PI*2*9, 0.6)); dummy.scale.setScalar(1); dummy.updateMatrix(); lights.setMatrixAt(i, dummy.matrix); const c = col(BULBS[i % BULBS.length]); lightCols.push(c); lights.setColorAt(i, c); }
+  tree.add(lights);
+  // presents under the tree
+  const giftCols = [0xd8263a, 0x2a8a4a, 0x3a7bd5, 0xffc93a, 0x9a3ad5, 0xf2f2f2];
+  for (let i=0;i<16;i++){
+    const a = i/16*Math.PI*2 + rand(-0.1, 0.1), r = rand(8, 13), s = rand(1.2, 2.6), box = new THREE.Group();
+    box.position.set(TP.x + Math.cos(a)*r, s/2, TP.z + Math.sin(a)*r); box.rotation.y = rand(0, 3); g.add(box);
+    const gc = giftCols[i % giftCols.length], rc = giftCols[(i + 3) % giftCols.length];
+    const b = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshStandardMaterial({color:col(gc), roughness:0.5})); b.castShadow = true; box.add(b);
+    const rib = new THREE.MeshStandardMaterial({color:col(rc), roughness:0.35, metalness:0.3});
+    box.add(new THREE.Mesh(new THREE.BoxGeometry(s*1.02, s*1.02, s*0.18), rib)); box.add(new THREE.Mesh(new THREE.BoxGeometry(s*0.18, s*1.02, s*1.02), rib));
+    [-1, 1].forEach(sd => { const bow = new THREE.Mesh(new THREE.TorusGeometry(s*0.18, s*0.06, 6, 12), rib); bow.position.set(sd*s*0.15, s*0.55, 0); bow.rotation.y = Math.PI/2; box.add(bow); });
+  }
+  // --- candy canes around the arena, with strings of lights between them ---
+  const caneTex = canvasTex(64, 256, (c) => { c.fillStyle = '#ffffff'; c.fillRect(0,0,64,256); c.fillStyle = '#d8263a'; for (let y=-64;y<320;y+=40){ c.beginPath(); c.moveTo(0, y); c.lineTo(64, y + 30); c.lineTo(64, y + 48); c.lineTo(0, y + 18); c.fill(); } });
+  caneTex.wrapS = caneTex.wrapT = THREE.RepeatWrapping; caneTex.repeat.set(1, 2);
+  const caneM = new THREE.MeshStandardMaterial({map:caneTex, roughness:0.35});
+  const posts = [];
+  for (let i=0;i<10;i++){
+    const a = i/10*Math.PI*2, r = ARENA_R + 3, x = Math.cos(a)*r, z = Math.sin(a)*r, cane = new THREE.Group();
+    cane.position.set(x, 0, z); cane.rotation.y = -a; g.add(cane);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 4.4, 10), caneM); stick.position.y = 2.2; stick.castShadow = true; cane.add(stick);
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.18, 8, 16, Math.PI), caneM); hook.position.set(0, 4.4, 0.5); hook.rotation.y = Math.PI/2; cane.add(hook);
+    posts.push(new V3(x, 4.2, z));
+  }
+  const PER = 14, NS = posts.length*PER, strand = new THREE.InstancedMesh(new THREE.SphereGeometry(0.16, 6, 5), new THREE.MeshBasicMaterial({toneMapped:false}), NS);
+  for (let i=0;i<posts.length;i++){
+    const A = posts[i], B = posts[(i + 1) % posts.length];
+    for (let k=0;k<PER;k++){ const u = (k + 0.5)/PER; dummy.position.lerpVectors(A, B, u); dummy.position.y -= Math.sin(u*Math.PI)*1.1; dummy.updateMatrix(); strand.setMatrixAt(i*PER + k, dummy.matrix); strand.setColorAt(i*PER + k, col(BULBS[(i*PER + k) % 4])); }
+  }
+  g.add(strand);
+  // --- snowmen ---
+  const coal = new THREE.MeshStandardMaterial({color:col(0x15151a)}), carrot = new THREE.MeshStandardMaterial({color:col(0xff7a1a)}), scarfM = new THREE.MeshStandardMaterial({color:col(0xd8263a)});
+  for (let i=0;i<4;i++){
+    const a = i/4*Math.PI*2 + 0.4, r = ARENA_R + 6.5, sm = new THREE.Group(); sm.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); g.add(sm); sm.lookAt(0, 0, 0);
+    [[1.3, 1.1], [0.95, 3.0], [0.65, 4.4]].forEach(([rr, y]) => { const b = new THREE.Mesh(new THREE.SphereGeometry(rr, 16, 12), snowM); b.position.y = y; b.castShadow = true; sm.add(b); });
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.6, 8), carrot); nose.rotation.x = Math.PI/2; nose.position.set(0, 4.4, 0.85); sm.add(nose);
+    [-1, 1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 5), coal); e.position.set(s*0.22, 4.6, 0.58); sm.add(e);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.8, 5), barkM); arm.position.set(s*1.5, 3.3, 0); arm.rotation.z = s*1.0; sm.add(arm); });
+    const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.16, 8, 16), scarfM); scarf.rotation.x = Math.PI/2; scarf.position.y = 3.85; sm.add(scarf);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.1, 16), coal); brim.position.y = 4.95; sm.add(brim);
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.8, 16), coal); hat.position.y = 5.4; sm.add(hat);
+  }
+  // --- cozy houses with glowing windows and roof lights ---
+  const wallCols = [0xb5523b, 0x8a5a3a, 0xd9c9a8, 0x6a8a9a, 0x9a3a4a, 0x7a6a9a];
+  const winM = new THREE.MeshBasicMaterial({color:col(0xffc46a)});
+  for (let i=0;i<18;i++){
+    const a = i/18*Math.PI*2 + 0.17; if (Math.abs(Math.atan2(Math.sin(a - Math.PI/2), Math.cos(a - Math.PI/2))) < 0.45) continue;
+    const r = rand(44, 62), w = rand(7, 10), h = rand(4.5, 6.5), d = rand(6, 8), house = new THREE.Group();
+    house.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); g.add(house); house.lookAt(0, 0, 0);
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({color:col(wallCols[i % wallCols.length]), roughness:0.85})); walls.position.y = h/2; house.add(walls);
+    const tri = new THREE.Shape(); tri.moveTo(-w/2 - 0.5, 0); tri.lineTo(w/2 + 0.5, 0); tri.lineTo(0, 3); tri.closePath();
+    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, {depth:d + 0.8, bevelEnabled:false}), snowM); roof.position.set(0, h, -(d + 0.8)/2); house.add(roof);
+    [-1, 1].forEach(s => { const wn = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.2), winM); wn.position.set(s*w*0.28, h*0.55, d/2 + 0.02); house.add(wn); });
+    const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.2), new THREE.MeshStandardMaterial({color:col(0x3a2414)})); door.position.set(0, 1.1, d/2 + 0.02); house.add(door);
+    const wreath = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.12, 6, 14), pineM); wreath.position.set(0, 1.7, d/2 + 0.1); house.add(wreath);
+    for (let k=0;k<7;k++){ const s = glowSprite(BULBS[(i + k) % BULBS.length], 1.0, 0.9); s.position.set(-w/2 - 0.3 + k*(w + 0.6)/6, h + 0.1, d/2 + 0.45); house.add(s); }
+    const chim = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 0.8), new THREE.MeshStandardMaterial({color:col(0x6a3a2a)})); chim.position.set(w*0.25, h + 2, -d*0.2); house.add(chim);
+  }
+  // --- snowy pine forest ---
+  const addPine = (x, z, s) => {
+    const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s); g.add(t);
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 1.4, 6), barkM); tr.position.y = 0.7; t.add(tr);
+    for (let k=0;k<4;k++){ const r = 1.8 - k*0.38, y = 1.4 + k*1.05; const l = new THREE.Mesh(new THREE.ConeGeometry(r, 1.7, 8), pineM); l.position.y = y + 0.85; t.add(l); const st = new THREE.Mesh(new THREE.ConeGeometry(r*0.62, 0.75, 8), snowM); st.position.y = y + 1.35; t.add(st); }
+  };
+  for (let i=0;i<34;i++){ const a = rand(0, Math.PI*2), r = rand(66, 95); addPine(Math.cos(a)*r, Math.sin(a)*r, rand(2, 3.5)); }
+  for (let i=0;i<10;i++){ const a = i/10*Math.PI*2 + 0.3, r = ARENA_R + rand(9, 13); addPine(Math.cos(a)*r, Math.sin(a)*r, rand(1, 1.5)); }
+  // --- a sleigh flying across the sky ---
+  const sleigh = new THREE.Group(); g.add(sleigh);
+  const sled = new THREE.Mesh(new THREE.BoxGeometry(4, 1.6, 2.4), new THREE.MeshStandardMaterial({color:col(0xc81e3a), roughness:0.4})); sleigh.add(sled);
+  const runner = new THREE.Mesh(new THREE.BoxGeometry(5, 0.2, 2.6), new THREE.MeshStandardMaterial({color:col(0xffc93a), metalness:0.7, roughness:0.3})); runner.position.y = -1; sleigh.add(runner);
+  const deerM = new THREE.MeshStandardMaterial({color:col(0x6a4a30)});
+  for (let k=0;k<3;k++) [-1, 1].forEach(s => { const deer = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1, 0.8), deerM); deer.position.set(4.5 + k*3, 0.6, s*1.1); sleigh.add(deer); const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.5), deerM); head.position.set(5.8 + k*3, 1.4, s*1.1); sleigh.add(head); });
+  // --- falling snow ---
+  const N = 450, flakes = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 5, 4), new THREE.MeshBasicMaterial({color:col(0xffffff)}), N);
+  const F = []; for (let i=0;i<N;i++) F.push({x:rand(-32,32), y:rand(0,18), z:rand(-32,32), s:rand(0,6), v:rand(0.7,1.5)});
+  g.add(flakes);
+  let blinkT = 0, chase = 0;
+  mapTick = (dt) => {
+    const t = performance.now()/1000;
+    for (let i=0;i<N;i++){
+      const f = F[i]; f.y -= f.v*dt; f.x += Math.sin(t*0.7 + f.s)*0.5*dt; f.z += Math.cos(t*0.5 + f.s)*0.3*dt;
+      if (f.y < 0){ f.y = rand(14, 18); f.x = rand(-32,32); f.z = rand(-32,32); }
+      dummy.position.set(f.x, f.y, f.z); dummy.scale.setScalar(1); dummy.updateMatrix(); flakes.setMatrixAt(i, dummy.matrix);
+    }
+    flakes.instanceMatrix.needsUpdate = true;
+    blinkT -= dt;
+    if (blinkT <= 0){
+      blinkT = 0.12; chase++;
+      for (let k=0;k<40;k++){ const i = (Math.random()*NL)|0; const c = lightCols[i].clone(); if (Math.random() < 0.5) c.multiplyScalar(0.25); lights.setColorAt(i, c); }
+      lights.instanceColor.needsUpdate = true;
+      for (let i=0;i<NS;i++) strand.setColorAt(i, col(BULBS[(i + chase) % 4]).multiplyScalar(((i + chase) % 3) ? 1 : 0.3));
+      strand.instanceColor.needsUpdate = true;
+      led.material.color.copy(col(chase % 2 ? 0xff3b3b : 0x3bff6a));
+    }
+    starGlow.material.opacity = 0.55 + 0.25*Math.sin(t*3); star.rotation.y = Math.sin(t*0.5)*0.4;
+    const sa = t*0.12; sleigh.position.set(Math.cos(sa)*80, 52 + Math.sin(t*0.8)*3, Math.sin(sa)*80); sleigh.rotation.y = -sa - Math.PI/2;
+    if (Math.random() < 0.6) sparks(sleigh.position.clone().add(new V3(rand(-2, 2), -1, rand(-2, 2))), 0xffd23f, 1, 1, 1.2, 1.2, -1);
+  };
+}
+
 const MAPS = {
   city:  {label:'HERO CITY', sub:'Sunset downtown', swatch:'linear-gradient(#1c2766,#f2876a 75%,#5a5560)',
           sky:[0x1c2766, 0xf2876a, 0x3a2c4f], sunDir:[-0.75, 0.18, -0.5], sunCol:[1.0, 0.75, 0.45], sunPos:[-26, 22, -17],
@@ -870,7 +1001,10 @@ const MAPS = {
           fog:[0xc4dcf0, 80, 260], sun:[0xfff0d8, 2.6], hemi:[0xc0dcff, 0xc8a878, 0.95], fill:[0xffe6c0, 0.4], exposure:1.0, ground:'sand', led:0x2ec4ff, build:buildLA},
   snow:  {label:'SNOWY MOUNTAIN', sub:'Falling snow and a ski lift', swatch:'linear-gradient(#6f9ad0,#e8f0fa 60%,#ffffff)', floorTint:0xdfe9f7,
           sky:[0x6f9ad0, 0xe8f0fa, 0xdfe8f2], sunDir:[-0.4, 0.55, 0.5], sunCol:[0.6, 0.6, 0.55], sunPos:[-20, 30, 22],
-          fog:[0xdde6f0, 35, 190], sun:[0xfff6ea, 1.9], hemi:[0xdfeaff, 0xb8c6d8, 1.05], fill:[0xbcd4ff, 0.5], exposure:0.95, ground:'snow', led:0x6fd3ff, build:buildSnow}
+          fog:[0xdde6f0, 35, 190], sun:[0xfff6ea, 1.9], hemi:[0xdfeaff, 0xb8c6d8, 1.05], fill:[0xbcd4ff, 0.5], exposure:0.95, ground:'snow', led:0x6fd3ff, build:buildSnow},
+  xmas:  {label:'CHRISTMAS VILLAGE', sub:'A giant tree, lights and presents', swatch:'linear-gradient(#0a1030,#2a3a6a 55%,#c8263a 80%,#2a8a4a)', floorTint:0xe2eafa,
+          sky:[0x070c26, 0x2a3a6a, 0x101830], sunDir:[0.3, 0.55, 0.75], sunCol:[0.6, 0.65, 0.8], sunPos:[14, 32, 24],
+          fog:[0x1c2546, 45, 170], sun:[0xb8c8ff, 1.2], hemi:[0x7a88c8, 0x3a3048, 0.9], fill:[0xffb070, 0.6], exposure:1.15, ground:'snow', led:0x3bff6a, build:buildXmas}
 };
 const safeMap = m => (typeof m === 'string' && Object.prototype.hasOwnProperty.call(MAPS, m)) ? m : 'city';
 function setMap(id){
@@ -2691,7 +2825,7 @@ function updateHUD(){
    STORY MODE: beat all the other heroes, then the giant monster
    ========================================================= */
 const STORY_ORDER = ['prism', 'blink', 'orbit', 'volt', 'riptide', 'thorn', 'glacia', 'flare', 'titan', 'boulder'];
-const STORY_MAPS = ['city', 'tokyo', 'la', 'snow'];
+const STORY_MAPS = ['city', 'tokyo', 'la', 'snow', 'xmas'];
 let story = null, toWin = 2;
 function loadStory(){
   try { const s = JSON.parse(localStorage.getItem('heroclash-story') || 'null'); if (s && HEROES[s.hero] && Number.isInteger(s.stage) && s.stage >= 0 && s.stage <= 9) return s; } catch(e){}
@@ -2730,7 +2864,7 @@ function startStoryFight(){
   $('#story').hidden = true;
   const st = story, isBoss = st.stage >= st.order.length;
   youId = st.hero;
-  setMap(isBoss ? 'city' : STORY_MAPS[st.stage % 4]);
+  setMap(isBoss ? 'city' : STORY_MAPS[st.stage % STORY_MAPS.length]);
   if (isBoss) setupBossFight('normal');
   else { setupFighters(st.hero, st.order[st.stage], false); const D = DIFFS[storyDiff(st.stage)]; ai = new AI(rival, D); rival.dmgMul = D.dmg; }
   beginHUD(); toWin = 1; wins = [0, 0]; round = 1; timers.length = 0; startRound();

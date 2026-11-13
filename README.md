@@ -34,6 +34,7 @@ On a phone or tablet, use the on-screen joystick and buttons.
 - **Tokyo**: neon signs, a red-and-white tower, lanterns and cherry blossoms at night.
 - **Los Angeles**: a sunny beach with palm trees, the ocean and mountains.
 - **Snowy Mountain**: falling snow, snowy pine trees, a cabin and a moving ski lift.
+- **Christmas Village**: a giant decorated tree with twinkling lights, presents, candy canes, snowmen, cozy houses and a sleigh flying overhead.
 
 In online games, the player who creates the game picks the map.
 
