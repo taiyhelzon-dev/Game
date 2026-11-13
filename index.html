@@ -146,7 +146,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
     <div class="row-label" id="rivalLabel">Your rival (computer)</div>
     <div class="cards" id="rivalCards"></div>
     <div class="row-label">Pick a map</div>
-    <div class="modes" id="mapCards"></div>
+    <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
     <div id="diffWrap">
       <div class="row-label">How tough?</div>
@@ -419,9 +419,10 @@ let mapGroup = null, mapTick = null, mapId = 'city';
 const groundTex = {
   asphalt: asphaltTex,
   wet: canvasTex(256, 256, (g, w) => { g.fillStyle = '#1d1f2c'; g.fillRect(0,0,w,w); speckle(g, w, w, 2500, 'rgba(160,170,255,0.08)', 'rgba(0,0,0,0.3)'); }),
+  snow: canvasTex(256, 256, (g, w) => { g.fillStyle = '#eef3fa'; g.fillRect(0,0,w,w); speckle(g, w, w, 5000, 'rgba(255,255,255,0.9)', 'rgba(150,170,200,0.18)'); }),
   sand: canvasTex(256, 256, (g, w) => { g.fillStyle = '#d6bd8a'; g.fillRect(0,0,w,w); speckle(g, w, w, 6000, 'rgba(255,250,235,0.25)', 'rgba(120,90,50,0.18)'); })
 };
-['wet','sand'].forEach(k => { groundTex[k].wrapS = groundTex[k].wrapT = THREE.RepeatWrapping; groundTex[k].repeat.set(40, 40); });
+['wet','sand','snow'].forEach(k => { groundTex[k].wrapS = groundTex[k].wrapT = THREE.RepeatWrapping; groundTex[k].repeat.set(40, 40); });
 
 function windowTex(o){
   const lit = []; for (let i=0;i<16;i++) lit.push(Math.random() < o.chance);
@@ -630,6 +631,98 @@ function buildLA(g){
   mapTick = (dt) => { waveTex.offset.x += dt*0.01; waveTex.offset.y += dt*0.006; foam.material.opacity = 0.55 + 0.25*Math.sin(performance.now()/700); };
 }
 
+// ---- Snowy Mountain: falling snow, pine trees and a ski lift ----
+function buildSnow(g){
+  const snowM = new THREE.MeshStandardMaterial({color:col(0xf4f8ff), roughness:0.9});
+  const rockM = new THREE.MeshStandardMaterial({color:col(0x6a6e78), roughness:1, flatShading:true});
+  // huge mountains all around, rock at the bottom and snow on top
+  for (let i=0;i<14;i++){
+    const a = i/14*Math.PI*2 + rand(-0.1, 0.1), r = rand(120, 170), h = rand(55, 95), w = rand(35, 60);
+    const m = new THREE.Group(); m.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); m.rotation.y = rand(0, 6); g.add(m);
+    const rock = new THREE.Mesh(new THREE.ConeGeometry(w, h, 8), rockM); rock.position.y = h/2; m.add(rock);
+    const capH = h*0.45, cap = new THREE.Mesh(new THREE.ConeGeometry(w*0.45 + 0.6, capH, 8), snowM); cap.position.y = h - capH/2 + 0.3; m.add(cap);
+  }
+  // rolling snow hills closer in
+  for (let i=0;i<10;i++){
+    const a = i/10*Math.PI*2 + 0.3, r = rand(48, 70), hill = new THREE.Mesh(new THREE.SphereGeometry(rand(10, 18), 16, 10, 0, Math.PI*2, 0, Math.PI/2), snowM);
+    hill.position.set(Math.cos(a)*r, -1, Math.sin(a)*r); hill.scale.y = rand(0.35, 0.6); hill.receiveShadow = true; g.add(hill);
+  }
+  // pine trees with snow on their branches
+  const pineM = new THREE.MeshStandardMaterial({color:col(0x1f4a35), roughness:0.85, flatShading:true});
+  const barkM = new THREE.MeshStandardMaterial({color:col(0x4a3426), roughness:0.9});
+  const addPine = (x, z, s) => {
+    const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s); t.rotation.y = rand(0, 6); g.add(t);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 1.4, 6), barkM); trunk.position.y = 0.7; t.add(trunk);
+    for (let k=0;k<4;k++){
+      const r = 1.8 - k*0.38, y = 1.4 + k*1.05;
+      const layer = new THREE.Mesh(new THREE.ConeGeometry(r, 1.7, 8), pineM); layer.position.y = y + 0.85; layer.castShadow = true; t.add(layer);
+      const snowTop = new THREE.Mesh(new THREE.ConeGeometry(r*0.62, 0.75, 8), snowM); snowTop.position.y = y + 1.35; t.add(snowTop);
+    }
+  };
+  for (let i=0;i<14;i++){ const a = i/14*Math.PI*2 + 0.1, r = ARENA_R + rand(4.5, 8); addPine(Math.cos(a)*r, Math.sin(a)*r, rand(0.9, 1.3)); }
+  for (let i=0;i<40;i++){ const a = rand(0, Math.PI*2), r = rand(30, 60); addPine(Math.cos(a)*r, Math.sin(a)*r, rand(1.2, 2.2)); }
+  // a cozy cabin with a glowing window and smoke
+  const cabin = new THREE.Group(); cabin.position.set(-16, 0, -27); cabin.rotation.y = 0.5; g.add(cabin);
+  const logM = new THREE.MeshStandardMaterial({color:col(0x7a4e2e), roughness:0.85});
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(6, 3.2, 4.5), logM); walls.position.y = 1.6; walls.castShadow = true; cabin.add(walls);
+  for (let k=0;k<6;k++){ const log = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 6.2, 6), logM); log.rotation.z = Math.PI/2; log.position.set(0, 0.3 + k*0.52, 2.27); cabin.add(log); }
+  const roofG = new THREE.CylinderGeometry(0.01, 3.9, 2.2, 4, 1); const roof = new THREE.Mesh(roofG, snowM); roof.position.y = 4.3; roof.rotation.y = Math.PI/4; roof.scale.set(1.05, 1, 0.8); roof.castShadow = true; cabin.add(roof);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.9), new THREE.MeshBasicMaterial({color:col(0xffc46a)})); win.position.set(1.4, 1.8, 2.3); cabin.add(win);
+  const wglow = glowSprite(0xffb050, 3.2, 0.5); wglow.position.set(1.4, 1.8, 2.5); cabin.add(wglow);
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.0), new THREE.MeshStandardMaterial({color:col(0x4a2e1a)})); door.position.set(-1.3, 1.0, 2.3); cabin.add(door);
+  const chim = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2, 0.7), rockM); chim.position.set(1.8, 4.6, -0.8); cabin.add(chim);
+  const chimTop = new THREE.Vector3(); 
+  // ski lift: towers, a cable and chairs that move
+  const liftA = new V3(26, 0, -10), liftB = new V3(70, 26, -60), cableY = 7;
+  const poleM = new THREE.MeshStandardMaterial({color:col(0x8a8e98), roughness:0.4, metalness:0.6});
+  for (let k=0;k<=4;k++){
+    const p = liftA.clone().lerp(liftB, k/4), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, cableY + 1, 8), poleM);
+    pole.position.set(p.x, p.y + (cableY + 1)/2, p.z); g.add(pole);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 0.25), poleM); bar.position.set(p.x, p.y + cableY + 1, p.z); bar.lookAt(liftB.x, p.y + cableY + 1, liftB.z); bar.rotateY(Math.PI/2); g.add(bar);
+    if (k > 0){ const base = new THREE.Mesh(new THREE.SphereGeometry(6, 12, 8, 0, Math.PI*2, 0, Math.PI/2), snowM); base.position.set(p.x, p.y - 6*0.6 + 0.2, p.z); base.scale.y = 0.6; g.add(base); base.position.y = 0; base.scale.y = Math.max(0.6, (p.y + 1)/6); }
+  }
+  const cableA = liftA.clone().setY(cableY + 1), cableB = liftB.clone().setY(liftB.y + cableY + 1);
+  [-1.3, 1.3].forEach(o => {
+    const side = new V3(-(cableB.z - cableA.z), 0, cableB.x - cableA.x).normalize().multiplyScalar(o);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([cableA.clone().add(side), cableB.clone().add(side)]), new THREE.LineBasicMaterial({color:col(0x2a2a30)})));
+  });
+  const chairM = new THREE.MeshStandardMaterial({color:col(0xd8323f), roughness:0.5});
+  const chairs = [];
+  for (let k=0;k<8;k++){
+    const c = new THREE.Group(); g.add(c);
+    const hang = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 4), poleM); hang.position.y = -0.8; c.add(hang);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.15, 0.7), chairM); seat.position.y = -1.6; c.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.8, 0.12), chairM); back.position.set(0, -1.25, -0.32); c.add(back);
+    chairs.push({c, u:k/8, dir:k % 2 ? 1 : -1});
+  }
+  // falling snow
+  const N = 450, flakes = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 5, 4), new THREE.MeshBasicMaterial({color:col(0xffffff)}), N);
+  const F = []; for (let i=0;i<N;i++) F.push({x:rand(-32,32), y:rand(0,18), z:rand(-32,32), s:rand(0,6), v:rand(0.8,1.8)});
+  const dummy = new THREE.Object3D(); g.add(flakes);
+  let puffT = 0, smokeT = 0;
+  mapTick = (dt) => {
+    const t = performance.now()/1000;
+    for (let i=0;i<N;i++){
+      const f = F[i]; f.y -= f.v*dt; f.x += Math.sin(t*0.7 + f.s)*0.5*dt + 0.4*dt; f.z += Math.cos(t*0.5 + f.s)*0.3*dt;
+      if (f.y < 0){ f.y = rand(14, 18); f.x = rand(-32,32); f.z = rand(-32,32); }
+      dummy.position.set(f.x, f.y, f.z); dummy.updateMatrix(); flakes.setMatrixAt(i, dummy.matrix);
+    }
+    flakes.instanceMatrix.needsUpdate = true;
+    for (const ch of chairs){
+      ch.u = (ch.u + dt*0.02) % 1; const u = ch.dir > 0 ? ch.u : 1 - ch.u;
+      const side = new V3(-(cableB.z - cableA.z), 0, cableB.x - cableA.x).normalize().multiplyScalar(ch.dir*1.3);
+      ch.c.position.copy(cableA).lerp(cableB, u).add(side); ch.c.lookAt(cableB.x + side.x, ch.c.position.y, cableB.z + side.z);
+    }
+    // chimney smoke and frosty breath
+    smokeT -= dt; if (smokeT <= 0){ smokeT = 0.25; chim.getWorldPosition(chimTop); chimTop.y += 1.2; dust(chimTop, 1, 0.3, 1.6, 2.2, 0xd0d0d8); }
+    puffT -= dt;
+    if (puffT <= 0 && player && rival){
+      puffT = 1.4;
+      [player, rival].forEach(f => { if (!f.ko){ const p = f.center().addScaledVector(f.faceDir(), 0.25*f.def.size); p.y += 0.62*f.def.size; dust(p, 2, 0.12, 0.35, 0.8, 0xffffff); } });
+    }
+  };
+}
+
 const MAPS = {
   city:  {label:'HERO CITY', sub:'Sunset downtown', swatch:'linear-gradient(#1c2766,#f2876a 75%,#5a5560)',
           sky:[0x1c2766, 0xf2876a, 0x3a2c4f], sunDir:[-0.75, 0.18, -0.5], sunCol:[1.0, 0.75, 0.45], sunPos:[-26, 22, -17],
@@ -639,7 +732,10 @@ const MAPS = {
           fog:[0x24183c, 35, 130], sun:[0xa8b8ff, 1.2], hemi:[0x6a70c8, 0x40284a, 0.8], fill:[0xff6ad5, 0.6], exposure:1.15, ground:'wet', led:0xff4fd8, build:buildTokyo},
   la:    {label:'LOS ANGELES', sub:'Sunny beach and palm trees', swatch:'linear-gradient(#2a78db,#cfe8ff 65%,#d6bd8a)',
           sky:[0x2a78db, 0xcfe8ff, 0x9fc0dc], sunDir:[0.45, 0.75, 0.35], sunCol:[1.0, 0.95, 0.85], sunPos:[18, 34, 14],
-          fog:[0xc4dcf0, 80, 260], sun:[0xfff0d8, 2.6], hemi:[0xc0dcff, 0xc8a878, 0.95], fill:[0xffe6c0, 0.4], exposure:1.0, ground:'sand', led:0x2ec4ff, build:buildLA}
+          fog:[0xc4dcf0, 80, 260], sun:[0xfff0d8, 2.6], hemi:[0xc0dcff, 0xc8a878, 0.95], fill:[0xffe6c0, 0.4], exposure:1.0, ground:'sand', led:0x2ec4ff, build:buildLA},
+  snow:  {label:'SNOWY MOUNTAIN', sub:'Falling snow and a ski lift', swatch:'linear-gradient(#6f9ad0,#e8f0fa 60%,#ffffff)', floorTint:0xdfe9f7,
+          sky:[0x6f9ad0, 0xe8f0fa, 0xdfe8f2], sunDir:[-0.4, 0.55, 0.5], sunCol:[0.6, 0.6, 0.55], sunPos:[-20, 30, 22],
+          fog:[0xdde6f0, 35, 190], sun:[0xfff6ea, 1.9], hemi:[0xdfeaff, 0xb8c6d8, 1.05], fill:[0xbcd4ff, 0.5], exposure:0.95, ground:'snow', led:0x6fd3ff, build:buildSnow}
 };
 const safeMap = m => (typeof m === 'string' && Object.prototype.hasOwnProperty.call(MAPS, m)) ? m : 'city';
 function setMap(id){
@@ -655,6 +751,7 @@ function setMap(id){
   renderer.toneMappingExposure = M.exposure;
   ground.material.map = groundTex[M.ground]; ground.material.roughness = M.ground === 'wet' ? 0.5 : 0.95; ground.material.needsUpdate = true;
   led.material.color.copy(col(M.led));
+  floor.material.color.copy(col(M.floorTint || 0xffffff));
   mapGroup = new THREE.Group(); scene.add(mapGroup); M.build(mapGroup);
 }
 setMap('city');

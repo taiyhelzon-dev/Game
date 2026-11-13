@@ -28,6 +28,7 @@ On a phone or tablet, use the on-screen joystick and buttons.
 - **Hero City**: a downtown arena at sunset.
 - **Tokyo**: neon signs, a red-and-white tower, lanterns and cherry blossoms at night.
 - **Los Angeles**: a sunny beach with palm trees, the ocean and mountains.
+- **Snowy Mountain**: falling snow, snowy pine trees, a cabin and a moving ski lift.
 
 In online games, the player who creates the game picks the map.
 
