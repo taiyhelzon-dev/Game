@@ -39,13 +39,15 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .mode.sel{border-color:var(--gold);background:var(--panel-2)}
 .mode.sel small{color:var(--ink)}
 .mode .sw{height:38px;border-radius:8px;margin-bottom:8px}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:640px){.cards{grid-template-columns:1fr}.mode{font-size:18px}}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card:not(.sel) .bl,.card:not(.sel) .moves{display:none}
+.card.sel{grid-column:span 2}
+@media (max-width:640px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.mode{font-size:18px}}
 .card{background:var(--panel);border:3px solid transparent;border-radius:14px;padding:12px 14px;text-align:left;color:var(--ink);
   font-family:var(--body);letter-spacing:0;display:flex;flex-direction:column;gap:6px;transition:transform .12s,border-color .12s;min-width:0}
 .card:hover{transform:translateY(-2px)}
 .card.sel{border-color:var(--c);background:var(--panel-2);box-shadow:0 0 0 3px #0006,0 0 24px -4px var(--c)}
-.card .nm{font-family:var(--display);font-size:30px;color:var(--c);letter-spacing:.04em;line-height:1}
+.card .nm{font-family:var(--display);font-size:26px;color:var(--c);letter-spacing:.04em;line-height:1}
 .card .tt{font-weight:800;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .card .bl{font-size:14px;line-height:1.35}
 .card .moves{font-size:12px;color:var(--muted)}
@@ -148,6 +150,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
     <div class="row-label">Pick a map</div>
     <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
+    <div>
+      <div class="row-label">Graphics</div>
+      <div class="chips" id="gfxChips" style="margin-top:10px"></div>
+    </div>
     <div id="diffWrap">
       <div class="row-label">How tough?</div>
       <div class="chips" id="diffChips" style="margin-top:10px"></div>
@@ -259,24 +265,76 @@ const HEROES = {
     id:'volt', name:'VOLT', title:'The Lightning Kid', css:'#25d0c0',
     blurb:'Small, fast and full of sparks. He charges his fists with lightning.',
     suit:0x1aa596, trim:0x1b2230, accent:0xffd84a, skin:0xe0a77f, hair:0x1d2340, hairStyle:'spiky', eyes:0x3a7bd5, lips:0xc27a6a, boot:0xeceef2, headScale:1.05,
-    size:1.0, bulk:1.0, speed:8.2, power:1.0, hp:100,
-    special:'Lightning Dash', ultimate:'Thunder Quake'
+    design:'bolt', zap:true, size:1.0, bulk:1.0, speed:8.2, power:1.0, hp:100,
+    special:'Lightning Dash', sp:'dash', ultimate:'Thunder Quake', ul:'quake'
   },
   titan: {
     id:'titan', name:'TITAN MAX', title:'The Legend Pro Hero', css:'#8f73ff',
     blurb:'Huge, strong and always smiling. Slow, but every hit is HUGE.',
     suit:0x5a3fe0, trim:0xe8ebf2, accent:0xffc93a, skin:0xd49a72, hair:0xeeeeee, hairStyle:'slick', eyes:0x5ab0ff, lips:0xb06a5a, boot:0xffc93a, cape:0xc81e3a,
-    size:1.28, bulk:1.3, speed:6.3, power:1.35, hp:125,
-    special:'Air Cannon', ultimate:'Titan Crash'
+    design:'yoke', pecs:true, grin:true, trimShoulders:true, size:1.28, bulk:1.3, speed:6.3, power:1.35, hp:125,
+    special:'Air Cannon', sp:'air', ultimate:'Titan Crash', ul:'crash'
   },
   flare: {
     id:'flare', name:'FLARE', title:'The Blast Rival', css:'#ff7a2e',
     blurb:'Loud, proud and fiery. Throws fireballs and blasts everything.',
     suit:0x23252f, trim:0x3b3e4c, accent:0xff6a1a, skin:0xe8b48c, hair:0xd92b23, hairStyle:'mohawk', eyes:0xd08a1a, lips:0xb8705e, boot:0x2b2b30,
-    size:1.05, bulk:1.05, speed:7.3, power:1.12, hp:105,
-    special:'Fireball', ultimate:'Supernova'
+    design:'flame', angry:true, mask:true, gauntlet:1.1, size:1.05, bulk:1.05, speed:7.3, power:1.12, hp:105,
+    special:'Fireball', sp:'fireball', ultimate:'Supernova', ul:'nova'
+  },
+  glacia: {
+    id:'glacia', name:'GLACIA', title:'The Frost Guardian', css:'#7fe3ff',
+    blurb:'Calm and cool. Her ice freezes rivals right where they stand.',
+    suit:0xe6f4ff, trim:0x2a6fb5, accent:0x7fe3ff, skin:0xf0cdb8, hair:0xe8f6ff, hairStyle:'long', eyes:0x6fd0ff, lips:0xc98a8a, boot:0x2a6fb5,
+    design:'snowflake', female:true, size:0.97, bulk:0.88, speed:7.6, power:1.05, hp:100,
+    special:'Ice Spear', sp:'ice', ultimate:'Blizzard', ul:'blizzard'
+  },
+  thorn: {
+    id:'thorn', name:'THORN', title:'The Jungle Guardian', css:'#9be04a',
+    blurb:'Strong and patient. Her vines grab rivals from far away.',
+    suit:0x2d5a34, trim:0x5a3a22, accent:0xa8d84a, skin:0x8d5a3b, hair:0x1a120c, hairStyle:'bun', eyes:0x6a4a20, lips:0x7a3e30, boot:0x5a3a22,
+    design:'leaf', female:true, size:1.0, bulk:0.92, speed:7.3, power:1.05, hp:108,
+    special:'Vine Whip', sp:'vine', ultimate:'Thorn Garden', ul:'garden'
+  },
+  orbit: {
+    id:'orbit', name:'ORBIT', title:'The Gravity Kid', css:'#a58bff',
+    blurb:'A space-loving genius. He pulls rivals in and calls down meteors.',
+    suit:0x1b1f3a, trim:0x8a5cff, accent:0xd6c8ff, skin:0xc68a5e, hair:0xf0f0f0, hairStyle:'swept', eyes:0x9a7aff, lips:0x8a5040, boot:0x8a5cff,
+    design:'rings', halo:true, size:0.98, bulk:0.95, speed:7.8, power:1.0, hp:98,
+    special:'Gravity Pull', sp:'pull', ultimate:'Meteor Fall', ul:'meteor'
+  },
+  prism: {
+    id:'prism', name:'PRISM', title:'The Light Bender', css:'#ff6ad5',
+    blurb:'Bright and bubbly. She shoots beams of rainbow light.',
+    suit:0xf6f6fa, trim:0xff6ad5, accent:0x5ae0ff, skin:0x5a3826, hair:0x24160f, hairStyle:'curly', eyes:0x7a4a2a, lips:0x6a3428, boot:0xff6ad5,
+    design:'rainbow', female:true, size:0.96, bulk:0.88, speed:8.0, power:0.98, hp:96,
+    special:'Light Beam', sp:'beam', ultimate:'Rainbow Burst', ul:'burst'
+  },
+  blink: {
+    id:'blink', name:'BLINK', title:'The Shadow Ninja', css:'#b07aff',
+    blurb:'Silent and super fast. He teleports right behind rivals.',
+    suit:0x22222a, trim:0x34343f, accent:0xa04aff, skin:0xe8c09a, hair:0x15151a, hairStyle:'hood', eyes:0xb07aff, lips:0xa86a5a, boot:0x15151a,
+    design:'sash', size:1.0, bulk:0.92, speed:9.0, power:0.92, hp:90,
+    special:'Shadow Step', sp:'teleport', ultimate:'Shadow Storm', ul:'storm'
+  },
+  boulder: {
+    id:'boulder', name:'BOULDER', title:'The Rock Wall', css:'#e0a060',
+    blurb:'Huge and tough as stone. Really hard to knock down.',
+    suit:0x7a5a3e, trim:0x6a6e76, accent:0xff9a3a, skin:0xa86e48, hair:0x2a1c14, hairStyle:'bald', eyes:0x5a3a1a, lips:0x7a4434, boot:0x6a6e76,
+    design:'cracks', pecs:true, trimShoulders:true, rockArmor:true, size:1.3, bulk:1.4, speed:5.6, power:1.4, hp:135,
+    special:'Rock Throw', sp:'rock', ultimate:'Earthquake', ul:'quakeline'
+  },
+  riptide: {
+    id:'riptide', name:'RIPTIDE', title:'The Wave Rider', css:'#2ee6c8',
+    blurb:'A fearless surfer. She blasts water and calls huge waves.',
+    suit:0x1c6fd1, trim:0xf2f2f2, accent:0x2ee6c8, skin:0xe8b48c, hair:0x4a2a14, hairStyle:'ponytail', eyes:0x2a8a7a, lips:0xc27a6a, boot:0xf2f2f2,
+    design:'water', female:true, size:0.98, bulk:0.9, speed:7.9, power:1.0, hp:100,
+    special:'Water Jet', sp:'jet', ultimate:'Tidal Wave', ul:'tidal'
   }
 };
+// How far away each move works (the computer uses this to decide when to use them)
+const SP_RANGE = {dash:[0,9], air:[4,16], fireball:[4,16], ice:[4,16], vine:[2,7], pull:[4,11], beam:[3,11], teleport:[3,12], rock:[4,16], jet:[3,16]};
+const UL_RANGE = {quake:6.5, crash:9, nova:6.5, blizzard:6.5, garden:14, meteor:16, burst:7.5, storm:9, quakeline:12, tidal:13};
 const DIFFS = {
   easy:   {label:'EASY',   react:0.75, special:0.25, dodge:0.04, block:0.08, dmg:0.65},
   normal: {label:'NORMAL', react:0.45, special:0.45, dodge:0.16, block:0.25, dmg:0.9},
@@ -363,6 +421,14 @@ sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normal
 Object.assign(sun.shadow.camera, {left:-26, right:26, top:26, bottom:-26, near:1, far:90});
 scene.add(sun);
 const fill = new THREE.DirectionalLight(col(0x8aa8ff), 0.55); fill.position.set(20, 12, 24); scene.add(fill);
+let gfx = 'pretty'; try { gfx = localStorage.getItem('heroclash-gfx') === 'fast' ? 'fast' : 'pretty'; } catch(e){}
+function applyGfx(){
+  renderer.setPixelRatio(gfx === 'fast' ? 1 : Math.min(window.devicePixelRatio || 1, 2));
+  const sz = gfx === 'fast' ? 1024 : 2048;
+  if (sun.shadow.mapSize.x !== sz){ sun.shadow.mapSize.set(sz, sz); if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  resize();
+}
+applyGfx();
 
 function canvasTex(w, h, draw, srgb=true){
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
@@ -818,7 +884,8 @@ function suitTextures(def){
   const paint = (g, bump) => {
     const base = bump ? '#808080' : hx(def.suit), panel = bump ? '#727272' : hx(def.trim), acc = bump ? '#a0a0a0' : hx(def.accent), seam = bump ? '#585858' : 'rgba(0,0,0,0.28)';
     g.fillStyle = base; g.fillRect(0,0,W,H);
-    if (def.id === 'volt'){
+    const d = def.design, rr = seeded(d.length*131 + 7);
+    if (d === 'bolt'){
       g.fillStyle = panel;
       [128, 384].forEach(x => { g.beginPath(); g.moveTo(x-48, H); g.lineTo(x+48, H); g.lineTo(x+30, 0); g.lineTo(x-30, 0); g.fill(); });
       g.fillRect(0, 0, W, cy(0.71));
@@ -826,22 +893,63 @@ function suitTextures(def){
       g.beginPath();
       [[C+14, cy(0.66)], [C-30, cy(0.53)], [C-4, cy(0.53)], [C-22, cy(0.4)], [C+32, cy(0.56)], [C+6, cy(0.56)], [C+26, cy(0.66)]].forEach(([x, y]) => g.lineTo(x, y));
       g.closePath(); g.fill();
-    } else if (def.id === 'titan'){
+    } else if (d === 'yoke'){
       g.fillStyle = panel; g.fillRect(0, 0, W, cy(0.63));
       g.beginPath(); g.moveTo(C-160, cy(0.63)); g.lineTo(C, cy(0.54)); g.lineTo(C+160, cy(0.63)); g.fill();
       g.fillStyle = acc; [92, 420].forEach(x => g.fillRect(x-9, cy(0.63), 18, H));
       g.beginPath(); g.arc(C, cy(0.47), 30, 0, Math.PI*2); g.fill();
       g.fillStyle = bump ? '#7a7a7a' : base; g.font = 'bold 44px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('T', C, cy(0.47) + 2);
-    } else {
-      // flames rising all the way around the waist
+    } else if (d === 'flame'){
       g.fillStyle = acc; g.beginPath(); g.moveTo(0, H);
       for (let x=0; x<=W; x+=16){ const tall = 70 + 60*Math.abs(Math.sin(x*0.037)) + (x % 32 ? 0 : 40); g.lineTo(x, H - tall); g.lineTo(x + 8, H - 55); }
       g.lineTo(W, H); g.fill();
       g.fillStyle = panel; g.fillRect(0, 0, W, cy(0.72));
-      // flame emblem on the chest
       g.fillStyle = acc; g.beginPath();
       g.moveTo(C, cy(0.67)); g.quadraticCurveTo(C+34, cy(0.56), C+18, cy(0.47)); g.quadraticCurveTo(C+6, cy(0.52), C+4, cy(0.56));
       g.quadraticCurveTo(C-8, cy(0.5), C-20, cy(0.47)); g.quadraticCurveTo(C-36, cy(0.58), C, cy(0.67)); g.fill();
+    } else if (d === 'snowflake'){
+      g.fillStyle = panel; [128, 384].forEach(x => g.fillRect(x-30, 0, 60, H)); g.fillRect(0, 0, W, cy(0.72));
+      g.strokeStyle = acc; g.lineWidth = 7; g.lineCap = 'round';
+      const x0 = C, y0 = cy(0.53), R = 46;
+      for (let k=0;k<6;k++){
+        const a = k*Math.PI/3; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + Math.cos(a)*R, y0 + Math.sin(a)*R); g.stroke();
+        const mx = x0 + Math.cos(a)*R*0.6, my = y0 + Math.sin(a)*R*0.6;
+        [a + 0.7, a - 0.7].forEach(b => { g.beginPath(); g.moveTo(mx, my); g.lineTo(mx + Math.cos(b)*16, my + Math.sin(b)*16); g.stroke(); });
+      }
+    } else if (d === 'leaf'){
+      g.fillStyle = panel; [128, 384].forEach(x => g.fillRect(x-24, 0, 48, H));
+      g.fillStyle = acc; g.beginPath(); g.moveTo(C, cy(0.68)); g.quadraticCurveTo(C+40, cy(0.53), C, cy(0.38)); g.quadraticCurveTo(C-40, cy(0.53), C, cy(0.68)); g.fill();
+      g.strokeStyle = bump ? '#707070' : base; g.lineWidth = 4; g.beginPath(); g.moveTo(C, cy(0.66)); g.lineTo(C, cy(0.4)); g.stroke();
+      g.strokeStyle = acc; g.lineWidth = 6;
+      for (let k=0;k<3;k++){ const y = cy(0.3 - k*0.08); g.beginPath(); g.moveTo(0, y); for (let x=0;x<W;x+=32) g.quadraticCurveTo(x+16, y + (k % 2 ? 16 : -16), x+32, y); g.stroke(); }
+    } else if (d === 'rings'){
+      if (!bump){ g.fillStyle = '#ffffff'; for (let k=0;k<140;k++){ g.globalAlpha = rr()*0.7 + 0.2; g.fillRect(rr()*W, rr()*H, 2, 2); } g.globalAlpha = 1; }
+      g.fillStyle = panel; [128, 384].forEach(x => g.fillRect(x-14, 0, 28, H));
+      g.beginPath(); g.arc(C, cy(0.52), 32, 0, Math.PI*2); g.fill();
+      g.strokeStyle = acc; g.lineWidth = 6; g.beginPath(); g.ellipse(C, cy(0.52), 62, 16, -0.3, 0, Math.PI*2); g.stroke();
+    } else if (d === 'rainbow'){
+      const cols = ['#ff4a4a', '#ff9a2e', '#ffe23f', '#4ae06a', '#3ab0ff', '#a04aff'];
+      g.lineWidth = 16; cols.forEach((cl, k) => { g.strokeStyle = bump ? (k % 2 ? '#8a8a8a' : '#767676') : cl; g.beginPath(); g.moveTo(C - 160 + k*16, cy(0.74)); g.lineTo(C + 80 + k*16, cy(0.18)); g.stroke(); });
+      g.fillStyle = panel; [128, 384].forEach(x => g.fillRect(x-18, 0, 36, H));
+    } else if (d === 'sash'){
+      g.strokeStyle = acc; g.lineWidth = 32; g.beginPath(); g.moveTo(C - 120, cy(0.74)); g.lineTo(C + 90, cy(0.06)); g.stroke();
+      g.fillStyle = panel; g.fillRect(0, cy(0.14), W, cy(0.02) - cy(0.14));
+      g.fillStyle = acc; g.beginPath(); const sx = C + 70, sy = cy(0.56);
+      for (let k=0;k<8;k++){ const r = k % 2 ? 7 : 22, a = k*Math.PI/4; g.lineTo(sx + Math.cos(a)*r, sy + Math.sin(a)*r); } g.closePath(); g.fill();
+    } else if (d === 'cracks'){
+      g.fillStyle = panel;
+      for (let k=0;k<16;k++){ const x = rr()*W, y = rr()*H*0.75, w = 40 + rr()*50, h = 30 + rr()*40; g.beginPath(); g.moveTo(x, y); g.lineTo(x + w, y + rr()*10); g.lineTo(x + w - rr()*10, y + h); g.lineTo(x + rr()*10, y + h - 6); g.closePath(); g.fill(); }
+      g.strokeStyle = acc; g.lineWidth = 4; if (!bump){ g.shadowColor = acc; g.shadowBlur = 8; }
+      for (let k=0;k<9;k++){ let x = rr()*W, y = rr()*H; g.beginPath(); g.moveTo(x, y); for (let s=0;s<5;s++){ x += rr()*40 - 20; y += 12 + rr()*14; g.lineTo(x, y); } g.stroke(); }
+      g.shadowBlur = 0;
+    } else if (d === 'water'){
+      g.fillStyle = panel; [128, 384].forEach(x => g.fillRect(x-10, 0, 20, H));
+      g.beginPath(); g.moveTo(0, H); g.lineTo(0, cy(0.16));
+      for (let x=0;x<W;x+=48) g.quadraticCurveTo(x+24, cy(0.26), x+48, cy(0.16));
+      g.lineTo(W, H); g.fill();
+      g.strokeStyle = acc; g.lineWidth = 8; g.lineCap = 'round';
+      g.beginPath(); g.arc(C, cy(0.53), 28, Math.PI*0.85, Math.PI*2.15); g.stroke();
+      g.beginPath(); g.arc(C + 14, cy(0.53) + 8, 12, Math.PI, Math.PI*2); g.stroke();
     }
     g.strokeStyle = seam; g.lineWidth = 3;
     g.beginPath(); g.moveTo(C, cy(0.42)); g.lineTo(C, cy(0.07)); g.stroke();
@@ -875,8 +983,8 @@ function buildModel(def){
   const hips = new THREE.Group(); hips.position.y = 1.0; body.add(hips);
   const pelvis = part(sphere(0.155, 20, 14), trim); pelvis.scale.set(1.08*B, 0.72, D*1.1); hips.add(pelvis);
   const spine = new THREE.Group(); hips.add(spine);
-  const torso = part(torsoGeo(), torsoMat); torso.rotation.y = Math.PI; torso.scale.set(B, 1, D); spine.add(torso);
-  if (def.id === 'titan') [-1, 1].forEach(s => { const pec = part(sphere(0.095), suit, s*0.08*B, 0.53, 0.2*D - 0.04); pec.scale.set(1.25, 0.8, 0.55); spine.add(pec); });
+  const torso = part(torsoGeo(), torsoMat); torso.rotation.y = Math.PI; torso.scale.set(B*(def.female ? 0.93 : 1), 1, D); spine.add(torso);
+  if (def.pecs) [-1, 1].forEach(s => { const pec = part(sphere(0.095), suit, s*0.08*B, 0.53, 0.2*D - 0.04); pec.scale.set(1.25, 0.8, 0.55); spine.add(pec); });
   const belt = part(new THREE.TorusGeometry(0.16, 0.022, 8, 32), acc, 0, 0.05, 0); belt.rotation.x = Math.PI/2; belt.scale.set(B*1.04, D*1.06, 1); spine.add(belt);
   spine.add(part(new THREE.BoxGeometry(0.07, 0.05, 0.02), metal, 0, 0.05, 0.162*D + 0.02));
   spine.add(part(limb(0.048, 0.05, 0.058, 0.12, 0.5), skin, 0, 0.86, 0));
@@ -885,27 +993,30 @@ function buildModel(def){
   const head = new THREE.Group(); head.position.y = 0.95; head.scale.setScalar(def.headScale || 1); spine.add(head);
   const cran = part(sphere(0.112, 28, 20), skin, 0, 0.025, -0.008); cran.scale.set(0.9, 1.0, 1.06); head.add(cran);
   const face = part(sphere(0.098, 24, 18), skin, 0, -0.03, 0.012); face.scale.set(0.84, 1.05, 0.98); head.add(face);
-  const chin = part(sphere(0.04), skin, 0, -0.105, 0.05); chin.scale.set(def.id === 'titan' ? 1.4 : 1.15, 0.85, 0.9); head.add(chin);
-  const masked = def.hairStyle === 'mohawk', ez = masked ? 0.1 : 0.088;
+  const chin = part(sphere(0.04), skin, 0, -0.105, 0.05); chin.scale.set(def.pecs ? 1.4 : 1.15, 0.85, 0.9); head.add(chin);
+  const masked = !!def.mask, eyes = [], shine = new THREE.MeshBasicMaterial({color:0xffffff}), ez = masked ? 0.1 : 0.088;
   [-1, 1].forEach(s => {
     const jaw = part(sphere(0.04), skin, s*0.05, -0.07, 0.015); jaw.scale.set(0.75, 1, 1); head.add(jaw);
     const cheek = part(sphere(0.03), skin, s*0.046, -0.02, 0.058); cheek.scale.set(1, 0.75, 0.7); head.add(cheek);
-    const eye = part(sphere(0.019, 16, 12), white, s*0.04, 0.008, ez); eye.scale.set(1.15, 0.85, 0.6); head.add(eye);
-    head.add(part(new THREE.CircleGeometry(0.0095, 18), iris, s*0.04, 0.008, ez + 0.0118));
-    head.add(part(new THREE.CircleGeometry(0.0045, 12), dark, s*0.04, 0.008, ez + 0.0122));
+    const eg = new THREE.Group(); eg.position.set(s*0.04, 0.008, ez); head.add(eg); eyes.push(eg);
+    const eye = part(sphere(0.019, 16, 12), white); eye.scale.set(1.15, 0.85, 0.6); eg.add(eye);
+    eg.add(part(new THREE.CircleGeometry(0.0095, 18), iris, 0, 0, 0.0118));
+    eg.add(part(new THREE.CircleGeometry(0.0045, 12), dark, 0, 0, 0.0122));
+    eg.add(part(new THREE.CircleGeometry(0.0022, 8), shine, 0.003, 0.003, 0.0126));
+    const lash = part(new THREE.BoxGeometry(0.042, def.female ? 0.0055 : 0.0032, 0.006), dark, s*0.04, 0.02, ez + 0.007); lash.rotation.x = 0.4; head.add(lash);
     const lid = part(new THREE.SphereGeometry(0.0205, 14, 8, 0, Math.PI*2, 0, Math.PI*0.42), skin, s*0.04, 0.009, ez);
     lid.scale.set(1.15, 0.9, 0.68); lid.rotation.x = 0.3; head.add(lid);
-    const brow = part(capsule(0.006, 0.034), masked ? dark : hair, s*0.042, 0.036, ez + 0.012);
-    brow.rotation.z = Math.PI/2 + s*(def.id === 'flare' ? 0.35 : -0.1); head.add(brow);
+    const brow = part(capsule(0.006, 0.034), (masked || def.hairStyle === 'hood') ? dark : hair, s*0.042, 0.036, ez + 0.012);
+    brow.rotation.z = Math.PI/2 + s*(def.angry ? 0.35 : -0.1); head.add(brow);
     const ear = part(sphere(0.026), skin, s*0.1, 0.0, -0.005); ear.scale.set(0.35, 1, 0.7); head.add(ear);
     head.add(part(sphere(0.011), skin, s*0.012, -0.04, 0.1));
   });
   const bridge = part(capsule(0.011, 0.03), skin, 0, -0.012, 0.1); bridge.rotation.x = -0.35; head.add(bridge);
   head.add(part(sphere(0.015), skin, 0, -0.035, 0.108));
-  const mz = def.id === 'titan' ? 0.028 : 0;
-  const upper = part(capsule(0.0065, def.id === 'titan' ? 0.042 : 0.03), lips, 0, -0.062, 0.093 + mz); upper.rotation.z = Math.PI/2; head.add(upper);
+  const mz = (def.grin || def.hairStyle === 'bald') ? 0.028 : 0;
+  const upper = part(capsule(0.0065, def.grin ? 0.042 : 0.03), lips, 0, -0.062, 0.093 + mz); upper.rotation.z = Math.PI/2; head.add(upper);
   const lower = part(capsule(0.0075, 0.026), lips, 0, -0.072, 0.091 + mz); lower.rotation.z = Math.PI/2; head.add(lower);
-  if (def.id === 'titan') head.add(part(new THREE.BoxGeometry(0.044, 0.009, 0.006), white, 0, -0.067, 0.097 + mz));
+  if (def.grin) head.add(part(new THREE.BoxGeometry(0.044, 0.009, 0.006), white, 0, -0.067, 0.097 + mz));
 
   // ---- hair ----
   const R = 0.118, rnd = seeded(def.id.length*977 + 13);
@@ -932,7 +1043,7 @@ function buildModel(def){
     const beard = part(new THREE.SphereGeometry(0.104, 24, 12, 0, Math.PI*2, Math.PI*0.55, Math.PI*0.45), hair, 0, -0.03, 0.014);
     beard.scale.set(0.92, 1.08, 1.05); head.add(beard);
     const stache = part(capsule(0.012, 0.05), hair, 0, -0.052, 0.123); stache.rotation.z = Math.PI/2; head.add(stache);
-  } else {
+  } else if (def.hairStyle === 'mohawk'){
     const buzz = part(capG(Math.PI*0.55), M(0x3a2420, 0.9, 0), 0, 0.026, -0.012); buzz.rotation.x = -0.35; buzz.scale.set(0.95, 1, 1.08); head.add(buzz);
     for (let i=0;i<11;i++) for (let c=-1;c<=1;c++){
       const a = 0.55 + i*0.2, nrm = new V3(c*0.016/R, Math.sin(a), Math.cos(a)).normalize(), tan = new V3(0, Math.cos(a), -Math.sin(a));
@@ -943,17 +1054,62 @@ function buildModel(def){
     }
     const mask = part(new THREE.TorusGeometry(0.106, 0.015, 8, 28, Math.PI*0.8), acc, 0, 0.005, 0);
     mask.rotation.set(Math.PI/2, 0, 0.1*Math.PI); mask.scale.set(0.92, 1, 1); head.add(mask);
+  } else if (['long', 'ponytail', 'bun', 'curly', 'swept'].includes(def.hairStyle)){
+    const hs = def.hairStyle;
+    const cap = part(capG(Math.PI*0.55), hair, 0, 0.028, -0.012); cap.rotation.x = -0.4; cap.scale.set(0.97, 1.0, 1.1); head.add(cap);
+    if (hs === 'long' || hs === 'ponytail' || hs === 'bun'){
+      for (let i=0;i<7;i++){ const x = -0.066 + i*0.022, b = part(capsule(0.017, 0.05), hair, x, 0.088, 0.08 - Math.abs(x)*0.3); b.rotation.set(1.0, 0, 0.45); head.add(b); }
+    }
+    if (hs === 'long'){
+      for (let i=0;i<26;i++){
+        const az = Math.PI*0.4 + i/25*Math.PI*1.2, sx = Math.sin(az), sz = Math.cos(az);
+        if (sz > 0.3) continue;
+        const len = 0.24 + rnd()*0.07, st = part(capsule(0.026, len), hair, sx*0.11, -0.05 - len*0.25, sz*0.116 - 0.012);
+        st.rotation.set(-sz*0.18, 0, sx*0.14); head.add(st);
+      }
+    } else if (hs === 'ponytail'){
+      head.add(part(new THREE.TorusGeometry(0.028, 0.01, 6, 12), acc, 0, 0.07, -0.122));
+      [[0.05, -0.15, 0.038], [-0.03, -0.18, 0.034], [-0.11, -0.19, 0.029], [-0.19, -0.18, 0.022]].forEach(([y, z, r]) => { const t = part(capsule(r, 0.07), hair, 0, y, z); t.rotation.x = 0.35; head.add(t); });
+    } else if (hs === 'bun'){
+      head.add(part(sphere(0.06, 14, 10), hair, 0, 0.12, -0.065));
+      const leaf = part(new THREE.ConeGeometry(0.026, 0.11, 4), acc, 0.035, 0.17, -0.06); leaf.scale.z = 0.3; leaf.rotation.z = -0.6; head.add(leaf);
+    } else if (hs === 'curly'){
+      [-1, 1].forEach(s => { for (let k=0;k<9;k++) head.add(part(sphere(0.036 + rnd()*0.014, 10, 8), hair, s*(0.11 + rnd()*0.045), 0.09 + rnd()*0.08, -0.05 + rnd()*0.07)); });
+      for (let k=0;k<22;k++){
+        const az = rnd()*Math.PI*2, el = 0.4 + rnd()*1.1, n = new V3(Math.sin(az)*Math.cos(el), Math.sin(el), Math.cos(az)*Math.cos(el));
+        if (n.z > 0.45 && n.y < 0.8) continue;
+        const p = part(sphere(0.03, 8, 6), hair); p.position.copy(n.multiplyScalar(0.122)).add(new V3(0, 0.03, -0.01)); head.add(p);
+      }
+    } else {
+      for (let i=0;i<40;i++){
+        const az = rnd()*Math.PI*2, el = 0.3 + rnd()*1.25, n = new V3(Math.sin(az)*Math.cos(el), Math.sin(el), Math.cos(az)*Math.cos(el));
+        if (n.z > 0.35 && n.y < 0.5) continue;
+        const len = 0.07 + rnd()*0.05, cl = part(new THREE.ConeGeometry(0.02, len, 6), hair);
+        const sweep = n.clone().add(new V3(0, 0.5, -0.9)).normalize();
+        cl.position.copy(n.clone().multiplyScalar(R*0.92)).add(new V3(0, 0.03, -0.01)).addScaledVector(sweep, len*0.4);
+        aim(cl, sweep); head.add(cl);
+      }
+    }
+  } else if (def.hairStyle === 'hood'){
+    const hood = part(new THREE.SphereGeometry(0.138, 24, 16, Math.PI/2 + 0.75, Math.PI*2 - 1.5, 0, Math.PI*0.72), trim, 0, 0.012, -0.012);
+    hood.scale.set(1, 1.05, 1.06); head.add(hood);
+    const fm = part(new THREE.SphereGeometry(0.104, 20, 12, 0, Math.PI*2, Math.PI*0.5, Math.PI*0.5), trim, 0, -0.012, 0.012); fm.scale.set(0.9, 1.05, 1.04); head.add(fm);
+    const knot = part(capsule(0.012, 0.09), acc, 0.02, 0.03, -0.15); knot.rotation.set(0.6, 0, 0.8); head.add(knot);
+  } else if (def.hairStyle === 'bald'){
+    const beard = part(new THREE.SphereGeometry(0.104, 24, 12, 0, Math.PI*2, Math.PI*0.58, Math.PI*0.42), hair, 0, -0.03, 0.012); beard.scale.set(0.93, 1.05, 1.04); head.add(beard);
   }
 
   // ---- arms with elbows and real fists ----
   const sh = [], el = [];
   [-1, 1].forEach(s => {
-    const shoulder = new THREE.Group(); shoulder.position.set(s*(0.19*B + 0.035), 0.63, 0); spine.add(shoulder);
-    const delt = part(sphere(0.082*B, 18, 14), def.id === 'titan' ? trim : suit, s*0.008, 0.005, 0); delt.scale.set(1.05, 1.1, 1.0); shoulder.add(delt);
+    const shoulder = new THREE.Group(); shoulder.position.set(s*(0.19*B*(def.female ? 0.92 : 1) + 0.035), 0.63, 0); spine.add(shoulder);
+    const delt = part(sphere(0.082*B, 18, 14), def.trimShoulders ? trim : suit, s*0.008, 0.005, 0); delt.scale.set(1.05, 1.1, 1.0); shoulder.add(delt);
     shoulder.add(part(limb(0.068*B, 0.078*B, 0.055*B, 0.27, 0.45), suit));
     const elbow = new THREE.Group(); elbow.position.y = -0.3; shoulder.add(elbow);
+    elbow.add(part(sphere(0.056*B, 14, 10), suit));
+    if (def.rockArmor){ shoulder.add(part(new THREE.DodecahedronGeometry(0.075*B, 0), trim, s*0.03, 0.06, 0)); elbow.add(part(new THREE.DodecahedronGeometry(0.055*B, 0), trim, 0, -0.1, 0.035)); }
     elbow.add(part(limb(0.058*B, 0.064*B, 0.044*B, 0.22, 0.25), suit));
-    const g = def.id === 'flare' ? 1.1 : 1;
+    const g = def.gauntlet || 1;
     elbow.add(part(limb(0.066*B*g, 0.07*B*g, 0.058*B*g, 0.1*g, 0.5), acc, 0, -0.11 - (g - 1)*0.05, 0));
     const fist = new THREE.Group(); fist.position.y = -0.285; fist.scale.setScalar(B); elbow.add(fist);
     const palm = part(sphere(0.042, 16, 12), acc); palm.scale.set(0.9, 1.15, 1.05); fist.add(palm);
@@ -967,6 +1123,7 @@ function buildModel(def){
     const hip = new THREE.Group(); hip.position.set(s*0.095*B, 0, 0); hips.add(hip);
     hip.add(part(limb(0.095*B, 0.1*B, 0.064*B, 0.44, 0.3), suit));
     const knee = new THREE.Group(); knee.position.y = -0.47; hip.add(knee);
+    knee.add(part(sphere(0.066*B, 14, 10), suit));
     knee.add(part(limb(0.064*B, 0.07*B, 0.045*B, 0.36, 0.3), suit));
     const pad = part(sphere(0.05*B, 14, 10), trim, 0, 0, 0.035*B); pad.scale.set(1, 1.15, 0.6); knee.add(pad);
     knee.add(part(limb(0.07*B, 0.074*B, 0.062*B, 0.2, 0.5), bootM, 0, -0.2, 0));
@@ -975,6 +1132,8 @@ function buildModel(def){
     foot.add(part(new THREE.BoxGeometry(0.11*B, 0.022, 0.27), sole, 0, -0.04, 0));
     hp.push(hip); kn.push(knee);
   });
+  let halo = null;
+  if (def.halo){ halo = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.022, 8, 48), new THREE.MeshBasicMaterial({color:col(def.accent), transparent:true, opacity:0.85})); halo.position.y = 1.35*S; root.add(halo); }
   let cape = null;
   if (def.cape){
     const cg = new THREE.PlaneGeometry(0.5*B, 0.95, 6, 10); cg.translate(0, -0.475, 0);
@@ -982,7 +1141,7 @@ function buildModel(def){
     cape = new THREE.Mesh(cg, cm); cape.castShadow = true; cape.position.set(0, 0.7, -0.2*D - 0.02); spine.add(cape);
     cape.userData.base = Float32Array.from(cg.attributes.position.array);
   }
-  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape, mats, acc};
+  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape, mats, acc, eyes, halo};
 }
 
 /* =========================================================
@@ -1060,7 +1219,21 @@ function crater(pos, r){
   craters.push({m, t:0}); if (craters.length > 6){ const o = craters.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); }
 }
 function clearCraters(){ craters.forEach(c => { scene.remove(c.m); c.m.geometry.dispose(); c.m.material.dispose(); }); craters.length = 0; }
+const temps = [];
+function temp(mesh, life, upd){ scene.add(mesh); temps.push({m:mesh, t:0, life, upd}); return mesh; }
+function beam(a, b, color, r=0.05, life=0.25){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 8, 1, true), new THREE.MeshBasicMaterial({color:col(color), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
+  m.position.copy(a).lerp(b, 0.5); m.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
+  temp(m, life, (mm, k) => { mm.material.opacity = 1 - k; mm.scale.x = mm.scale.z = 1 + k; });
+}
+function smoke(pos, color){ dust(pos, 10, 0.7, 1.3, 0.6, color); sparks(pos, color, 8, 4, 0.3, 0.4, 0.5); }
+function clearTemps(){ temps.forEach(o => { scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); }); temps.length = 0; }
 function updateFx(dt){
+  for (let i=temps.length-1;i>=0;i--){
+    const o = temps[i]; o.t += dt; const k = Math.min(1, o.t/o.life);
+    if (o.upd) o.upd(o.m, k, dt);
+    if (k >= 1){ scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); temps.splice(i, 1); }
+  }
   for (const s of sprites){
     if (!s.alive) continue;
     s.life -= dt; if (s.life <= 0){ s.alive = false; s.sp.visible = false; continue; }
@@ -1115,7 +1288,7 @@ function hitFx(victim, attacker, kind, blocked){
     const d = victim.pos.clone().sub(attacker.pos).setY(0); if (d.lengthSq() < 1e-4) d.set(0,0,1);
     ring(c, 0xffffff, kind === 'huge' ? 4 : 2, 0.3, false, d.normalize());
   }
-  if (attacker.def.id === 'volt') zapAround(c, kind === 'small' ? 2 : 5);
+  if (attacker.def.zap) zapAround(c, kind === 'small' ? 2 : 5);
   const words = WORDS[kind] || WORDS.small;
   popText(words[(Math.random()*words.length)|0], c, attacker.def.css);
   (kind === 'small' ? sfx.hit : kind === 'big' ? sfx.big : sfx.boom)();
@@ -1148,7 +1321,7 @@ class Fighter {
     this.atk = 0; this.atkDur = 0.3; this.combo = 0; this.comboWin = 0; this.hitDone = true;
     this.stun = 0; this.inv = 0; this.dashT = 0; this.dashCd = 0; this.specCd = 0; this.kd = 0; this.kdWas = false;
     this.action = null; this.slam = false; this.ko = false; this.flash = 0; this.glow = 0; this.walkT = 0;
-    this.moving = false; this.blocking = false; this.netMoving = false;
+    this.moving = false; this.blocking = false; this.netMoving = false; this.frozen = 0;
     this.cur.lie = 0; this.m.body.rotation.set(0,0,0); this.m.body.position.set(0,0,0);
     this.yaw = this.tgtYaw = z > 0 ? Math.PI : 0;
   }
@@ -1156,7 +1329,7 @@ class Fighter {
   faceDir(){ return new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   toward(foe){ const d = new V3(foe.pos.x - this.pos.x, 0, foe.pos.z - this.pos.z); const len = d.length(); return {dir: len > 0.001 ? d.divideScalar(len) : this.faceDir(), dist: len}; }
   tick(dt){
-    ['atk','stun','inv','dashCd','specCd','comboWin','flash'].forEach(k => { this[k] = Math.max(0, this[k] - dt); });
+    ['atk','stun','inv','dashCd','specCd','comboWin','flash','frozen'].forEach(k => { this[k] = Math.max(0, this[k] - dt); });
   }
   log(t, c){
     if (!this.netLog) return;
@@ -1190,7 +1363,7 @@ class Fighter {
     if (this.dashT > 0){
       this.dashT -= dt; this.pos.addScaledVector(this.dashDir, d.speed*3.4*dt);
       if (Math.random() < 0.5) dust(this.pos.clone().setY(0.1), 1, 0.5, 0.8, 0.5);
-      if (d.id === 'volt' && Math.random() < 0.5) zapAround(this.center(), 1);
+      if (d.zap && Math.random() < 0.5) zapAround(this.center(), 1);
     } else if (free){
       const mv = new V3(inp.mx, 0, inp.mz); if (mv.lengthSq() > 1) mv.normalize();
       this.blocking = !!inp.block && this.onGround && this.atk <= 0;
@@ -1220,7 +1393,7 @@ class Fighter {
       const n = (v, lo, hi, def) => { v = +v; return Number.isFinite(v) ? clamp(v, lo, hi) : def; };
       this.tgt.set(n(p.x,-25,25,this.tgt.x), n(p.y,0,40,0), n(p.z,-25,25,this.tgt.z));
       this.tgtYaw = n(p.yw, -20, 20, this.tgtYaw);
-      this.netMoving = !!p.mv; this.stun = p.st ? 0.1 : 0; this.blocking = !!p.bk; this.kd = p.kd ? 0.1 : 0;
+      this.netMoving = !!p.mv; this.frozen = p.fz ? 0.1 : 0; this.stun = p.st ? 0.1 : 0; this.blocking = !!p.bk; this.kd = p.kd ? 0.1 : 0;
       this.hp = n(p.hp, 0, this.maxHp, this.hp); this.meter = n(p.me, 0, 100, 0); this.dashT = p.da ? 0.05 : 0;
       if (Array.isArray(p.a)) for (const a of p.a.slice(-6)){
         if (!Array.isArray(a)) continue; const s = +a[0];
@@ -1255,9 +1428,9 @@ class Fighter {
     else if (t === 'u') this.startUltimate(foe);
   }
   ambientFx(){
-    if (this.meter >= 100 && Math.random() < 0.25){
+    if ((this.meter >= 100 || this.frozen > 0) && Math.random() < 0.25){
       const p = this.center().add(new V3(rand(-.5,.5), rand(-1,1), rand(-.5,.5)));
-      if (this.def.id === 'volt' && Math.random() < 0.5) zapAround(p, 1, 0.3); else sparks(p, this.def.accent, 1, 0.5, 0.4, 0.3, 1.5);
+      if (this.frozen > 0) sparks(p, 0xcff6ff, 1, 0.5, 0.4, 0.3, 0.5); else if (this.def.zap && Math.random() < 0.5) zapAround(p, 1, 0.3); else sparks(p, this.def.accent, 1, 0.5, 0.4, 0.3, 1.5);
     }
   }
   clampArena(){
@@ -1282,7 +1455,7 @@ class Fighter {
       foe.takeHit((heavy ? 9 : 5)*this.def.power*this.dmgMul, tw.dir, heavy ? 15 : 5, heavy ? 7 : 0, this, heavy ? 'big' : 'small');
     }
   }
-  takeHit(dmg, dir, force, lift, attacker, kind){
+  takeHit(dmg, dir, force, lift, attacker, kind, opts={}){
     if (this.ghost || this.ko || this.inv > 0 || this.kd > 0) return false;
     const flat = dir.clone().setY(0); if (flat.lengthSq() < 1e-6) flat.copy(this.faceDir()).negate(); flat.normalize();
     const facing = this.faceDir().dot(flat) < -0.2;
@@ -1293,7 +1466,8 @@ class Fighter {
       this.meter = Math.min(100, this.meter + 4); attacker.meter = Math.min(100, attacker.meter + 3);
     } else {
       this.hp = Math.max(0, this.hp - dmg);
-      this.stun = kind === 'small' ? 0.32 : 0.6;
+      this.stun = Math.max(kind === 'small' ? 0.32 : 0.6, opts.stun || 0);
+      if (opts.freeze){ this.frozen = opts.freeze; this.stun = Math.max(this.stun, opts.freeze); sparks(this.center(), 0xcff6ff, 20, 5, 0.6, 0.5, 1); }
       this.kb.copy(flat).multiplyScalar(force);
       if (lift){ this.vy = lift; this.onGround = false; }
       if (lift >= 6) this.kd = 1.1;
@@ -1308,36 +1482,81 @@ class Fighter {
 
   /* ----- special moves ----- */
   startSpecial(foe){
-    const id = this.def.id; this.log('s');
-    if (id === 'volt'){
-      this.action = {type:'vdash', t:0.38, hit:false}; this.dashDir.copy(this.faceDir()); this.specCd = 2.4; sfx.zap();
-    } else if (id === 'titan'){
-      this.action = {type:'charge', t:0.35}; this.specCd = 3.0; this.glow = 1;
-    } else {
+    const sp = this.def.sp, f = this.faceDir(), c = this.center(); this.log('s');
+    if (sp === 'dash'){ this.action = {type:'vdash', t:0.38, hit:false}; this.dashDir.copy(f); this.specCd = 2.4; sfx.zap(); }
+    else if (sp === 'air'){ this.action = {type:'charge', t:0.35}; this.specCd = 3.0; this.glow = 1; }
+    else if (sp === 'fireball'){
       this.action = {type:'throw', t:0.22}; this.specCd = 1.5;
-      const f = this.faceDir();
-      spawnProjectile(this, this.center().addScaledVector(f, 0.8), f.multiplyScalar(26), {radius:0.55, dmg:10, force:9, lift:4, color:0xff6a1a, splash:2.2, kind:'big', size:0.45});
-      sfx.boom();
+      spawnProjectile(this, c.addScaledVector(f, 0.8), f.clone().multiplyScalar(26), {radius:0.55, dmg:10, force:9, lift:4, color:0xff6a1a, splash:2.2, kind:'big', size:0.45}); sfx.boom();
+    } else if (sp === 'ice'){
+      this.action = {type:'throw', t:0.22}; this.specCd = 1.8;
+      spawnProjectile(this, c.addScaledVector(f, 0.9), f.clone().multiplyScalar(28), {radius:0.5, dmg:9, force:4, lift:0, color:0x9fe8ff, kind:'big', size:0.4, spear:true, freeze:1.1}); sfx.zap();
+    } else if (sp === 'rock'){
+      this.action = {type:'throw', t:0.3}; this.specCd = 2.6;
+      spawnProjectile(this, c.addScaledVector(f, 1.1).add(new V3(0, 0.4, 0)), f.clone().multiplyScalar(17), {radius:0.8, dmg:15, force:14, lift:6, color:0x8d9098, kind:'big', size:0.7, solid:true}); sfx.thud();
+    } else if (sp === 'jet'){
+      this.action = {type:'throw', t:0.22}; this.specCd = 1.4;
+      spawnProjectile(this, c.addScaledVector(f, 0.8), f.clone().multiplyScalar(32), {radius:0.45, dmg:8, force:13, lift:0, color:0x5ad8ff, kind:'big', size:0.35, water:true}); sfx.wind();
+    } else if (sp === 'vine'){ this.action = {type:'whip', t:0.3, range:7, pull:true, dmg:9, color:0x6ac83a}; this.specCd = 2.2; sfx.swing(); }
+    else if (sp === 'pull'){ this.action = {type:'whip', t:0.35, range:11, pull:true, dmg:6, color:0xa58bff, grav:true}; this.specCd = 2.6; sfx.wind(); }
+    else if (sp === 'beam'){ this.action = {type:'whip', t:0.25, range:11, dmg:9, color:0xff6ad5, beam:true}; this.specCd = 1.8; sfx.zap(); }
+    else if (sp === 'teleport'){
+      this.action = {type:'tele', t:0.34, hit:false}; this.specCd = 2.8; this.inv = Math.max(this.inv, 0.2);
+      smoke(this.center(), 0x6a3aa8);
+      const tw = this.toward(foe);
+      if (!this.ghost && tw.dist < 12){
+        const behind = foe.pos.clone().addScaledVector(foe.faceDir(), -1.3);
+        this.pos.x = behind.x; this.pos.z = behind.z; this.clampArena();
+        this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
+      }
+      sfx.dash();
     }
   }
   startUltimate(foe){
-    const id = this.def.id; this.log('u'); this.meter = 0; slowT = 0.45; shake = Math.max(shake, 0.4);
+    const ul = this.def.ul; this.log('u'); this.meter = 0; slowT = 0.45; shake = Math.max(shake, 0.4);
     showBanner(this.def.ultimate.toUpperCase() + '!', this.def.css, 1.1, true);
     ring(this.pos.clone().setY(0.1), this.def.accent, 4, 0.5);
     dust(this.pos.clone().setY(0.1), 10, 1.5, 1.4);
-    if (id === 'volt'){
-      const tw = this.toward(foe);
+    const tw = this.toward(foe);
+    if (ul === 'quake'){
       this.vy = 15; this.onGround = false; this.slam = true; this.glow = 1;
       if (!this.ghost) this.kb.copy(tw.dir).multiplyScalar(Math.min(tw.dist*5.2, 40));
       sfx.zap(); this.action = {type:'air', t:1.2};
-    } else if (id === 'titan'){
+    } else if (ul === 'crash'){
       this.action = {type:'crash', t:0.6}; this.glow = 1; sfx.wind();
-    } else {
+    } else if (ul === 'nova'){
       this.action = {type:'nova', t:0.55}; this.vy = 7; this.onGround = false; this.glow = 1;
+    } else if (ul === 'blizzard'){
+      this.action = {type:'blizzard', t:0.6}; this.glow = 1; sfx.wind();
+    } else if (ul === 'burst'){
+      this.action = {type:'burst', t:0.5}; this.glow = 1; sfx.zap();
+    } else if (ul === 'garden' || ul === 'meteor'){
+      const at = foe.pos.clone().setY(0), isM = ul === 'meteor', t = isM ? 1.0 : 0.7, r = isM ? 4.5 : 3.6, color = isM ? 0xff7a2e : 0x6ac83a;
+      this.action = {type:'target', t, at, r, dmg: isM ? 34 : 30, kind:ul}; this.glow = 1;
+      const warn = new THREE.Mesh(new THREE.RingGeometry(r*0.85, r, 48), new THREE.MeshBasicMaterial({color:col(color), transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+      warn.rotation.x = -Math.PI/2; warn.position.copy(at).setY(0.06);
+      temp(warn, t, (m, k) => { m.material.opacity = 0.4 + 0.4*Math.sin(k*30); });
+      if (isM){
+        const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6, 1), new THREE.MeshStandardMaterial({color:col(0x4a3a30), emissive:col(0xff5a1a), emissiveIntensity:0.7, roughness:0.9, flatShading:true}));
+        const from = at.clone().add(new V3(10, 45, -8));
+        temp(rock, t, (m, k) => { m.position.lerpVectors(from, at, k); m.rotation.x += 0.2; m.rotation.y += 0.15; sparks(m.position, Math.random() < 0.5 ? 0xff7a2e : 0xffd23f, 3, 2, 0.4, 0.9, 0); });
+        rock.position.copy(from);
+      }
+      sfx.wind();
+    } else if (ul === 'storm'){
+      this.action = {type:'storm', t:1.0, n:0, next:0.05, lock: tw.dist < 10}; this.glow = 1;
+    } else if (ul === 'quakeline'){
+      this.action = {type:'slam', t:0.55}; this.glow = 1; sfx.wind();
+    } else if (ul === 'tidal'){
+      this.action = {type:'throw', t:0.45}; this.glow = 0;
+      const f = this.faceDir();
+      spawnProjectile(this, this.pos.clone().addScaledVector(f, 2).setY(1.5), f.clone().multiplyScalar(15), {radius:2.8, dmg:28, force:20, lift:7, kind:'huge', size:1, wave:true, color:0x2a8ae0, life:1.6});
+      sfx.wind(); sfx.boom();
     }
   }
   updateAction(dt, foe){
     const a = this.action; a.t -= dt;
+    const P = this.def.power*this.dmgMul;
     if (a.type === 'vdash'){
       if (!this.ghost) this.pos.addScaledVector(this.dashDir, 24*dt);
       this.inv = Math.max(this.inv, 0.05);
@@ -1345,7 +1564,7 @@ class Fighter {
       if (!a.hit){
         const tw = this.toward(foe);
         if (tw.dist < 1.7*this.def.size + 0.4 && Math.abs(foe.pos.y - this.pos.y) < 2){
-          a.hit = true; foe.takeHit(12*this.def.power*this.dmgMul, this.dashDir.clone(), 14, 6, this, 'big'); a.t = Math.min(a.t, 0.08);
+          a.hit = true; foe.takeHit(12*P, this.dashDir.clone(), 14, 6, this, 'big'); a.t = Math.min(a.t, 0.08);
         }
       }
     } else if (a.type === 'charge'){
@@ -1356,6 +1575,23 @@ class Fighter {
         spawnProjectile(this, this.center().addScaledVector(f, 1.2), f.clone().multiplyScalar(18), {radius:1.3, dmg:14, force:16, lift:6, color:0xeaf2ff, kind:'big', size:1.1, wind:true});
         ring(this.center().addScaledVector(f, 1.4), 0xffffff, 2.5, 0.35, false, f);
         this.glow = 0;
+      }
+    } else if (a.type === 'whip'){
+      if (!a.done && a.t < 0.15){
+        a.done = true;
+        const tw = this.toward(foe), f = this.faceDir(), from = this.center().addScaledVector(f, 0.5);
+        const hit = tw.dist < a.range && tw.dir.dot(f) > 0.6 && Math.abs(foe.pos.y - this.pos.y) < 2.5 && !foe.ko;
+        const to = hit ? foe.center() : from.clone().addScaledVector(f, a.range);
+        beam(from, to, a.color, a.beam ? 0.09 : 0.05, 0.3);
+        if (a.grav) for (let i=0;i<10;i++) sparks(from.clone().lerp(to, i/10), a.color, 2, 1.5, 0.4, 0.4, 0);
+        if (a.beam){ beam(from, to, 0xffffff, 0.035, 0.3); sparks(to, 0xffffff, 12, 6, 0.3, 0.5, 0); }
+        if (hit) foe.takeHit(a.dmg*P, a.pull ? tw.dir.clone().negate() : tw.dir, a.pull ? 13 : 9, a.pull ? 0 : 3, this, 'big', {stun: a.pull ? 0.75 : 0});
+      }
+    } else if (a.type === 'tele'){
+      if (!a.hit && a.t < 0.18){
+        a.hit = true; smoke(this.center(), 0x6a3aa8);
+        const tw = this.toward(foe);
+        if (tw.dist < 2.6) foe.takeHit(10*P, tw.dir, 12, 5, this, 'big');
       }
     } else if (a.type === 'air'){
       if (Math.random() < 0.8) sparks(this.center(), 0xffe14d, 2, 2, 0.35, 0.5, 0);
@@ -1370,7 +1606,7 @@ class Fighter {
         for (let i=1;i<=4;i++) dust(this.pos.clone().addScaledVector(f, i*2).setY(0.2), 4, 1.5, 1.6, 1);
         debris(this.pos.clone().addScaledVector(f, 2), 10, 9); crater(this.pos.clone().addScaledVector(f, 1.5), 2.2);
         const tw = this.toward(foe);
-        if (tw.dist < 11 && tw.dir.dot(f) > 0.5 && foe.pos.y < 4) foe.takeHit(34*this.def.power*this.dmgMul, f, 24, 10, this, 'huge');
+        if (tw.dist < 11 && tw.dir.dot(f) > 0.5 && foe.pos.y < 4) foe.takeHit(34*P, f, 24, 10, this, 'huge');
       }
     } else if (a.type === 'nova'){
       if (!this.ghost) this.vy = Math.max(this.vy, 0.5);
@@ -1383,7 +1619,73 @@ class Fighter {
         dust(this.pos.clone().setY(0.2), 16, 3, 2.2, 1.4, 0x6a5a55);
         debris(this.pos.clone().setY(0.1), 14, 10); crater(this.pos, 3.2);
         const tw = this.toward(foe);
-        if (tw.dist < 7.5) foe.takeHit(30*this.def.power*this.dmgMul, tw.dir, 22, 10, this, 'huge');
+        if (tw.dist < 7.5) foe.takeHit(30*P, tw.dir, 22, 10, this, 'huge');
+      }
+    } else if (a.type === 'blizzard'){
+      const c = this.center();
+      for (let i=0;i<3;i++){ const ang = rand(0, Math.PI*2), r = rand(1, 4); sparks(c.clone().add(new V3(Math.cos(ang)*r, rand(-1, 1.5), Math.sin(ang)*r)), Math.random() < 0.5 ? 0xffffff : 0x9fe8ff, 1, 3, 0.4, 0.4, 0); }
+      if (a.t <= 0){
+        sfx.boom(); shake = 0.9; this.glow = 0;
+        ring(this.pos.clone().setY(0.15), 0x9fe8ff, 8, 0.7); ring(c, 0xffffff, 6, 0.5, false, this.faceDir());
+        sparks(c, 0x9fe8ff, 50, 14, 0.8, 0.6, 2); sparks(c, 0xffffff, 40, 10, 0.9, 0.5, 2);
+        dust(this.pos.clone().setY(0.2), 22, 3, 2.2, 1.6, 0xeef6ff);
+        const tw = this.toward(foe);
+        if (tw.dist < 7.5) foe.takeHit(26*P, tw.dir, 6, 0, this, 'huge', {freeze:2.2});
+      }
+    } else if (a.type === 'burst'){
+      const RB = [0xff4a4a, 0xff9a2e, 0xffe23f, 0x4ae06a, 0x3ab0ff, 0xa04aff];
+      sparks(this.center(), RB[(Math.random()*6)|0], 2, 3, 0.4, 0.5, 0);
+      if (!this.ghost) this.vy = Math.max(this.vy, 0.3);
+      if (a.t <= 0){
+        sfx.boom(); shake = 1.0; this.glow = 0;
+        const c = this.center();
+        RB.forEach((cl, i) => { ring(this.pos.clone().setY(0.1 + i*0.02), cl, 5 + i*0.7, 0.5 + i*0.05); sparks(c, cl, 14, 14, 0.7, 0.6, 1); });
+        const tw = this.toward(foe);
+        if (tw.dist < 8) foe.takeHit(28*P, tw.dir, 20, 9, this, 'huge');
+      }
+    } else if (a.type === 'target'){
+      if (a.kind === 'garden' && Math.random() < 0.5) sparks(a.at.clone().add(new V3(rand(-a.r, a.r), 0.2, rand(-a.r, a.r))), 0x6ac83a, 1, 1, 0.4, 0.4, 2);
+      if (a.t <= 0){
+        this.glow = 0; shake = 1.1;
+        if (a.kind === 'garden'){
+          sfx.big(); debris(a.at, 10, 8); dust(a.at.clone().setY(0.2), 12, 2, 1.8, 1.2, 0x7a6a50);
+          for (let i=0;i<12;i++){
+            const h = rand(2, 3.4), sg = new THREE.ConeGeometry(rand(0.2, 0.38), h, 6); sg.translate(0, h/2, 0);
+            const sp = new THREE.Mesh(sg, new THREE.MeshStandardMaterial({color:col(i % 3 ? 0x3f8a32 : 0x6a4a2a), roughness:0.7, flatShading:true}));
+            const ang = rand(0, Math.PI*2), rr = rand(0, a.r*0.85); sp.position.set(a.at.x + Math.cos(ang)*rr, 0, a.at.z + Math.sin(ang)*rr); sp.rotation.set(rand(-0.3, 0.3), 0, rand(-0.3, 0.3)); sp.castShadow = true;
+            temp(sp, 1.4, (m, k) => { m.scale.y = k < 0.12 ? k/0.12 : k > 0.75 ? Math.max(0.01, (1 - k)/0.25) : 1; });
+          }
+        } else {
+          sfx.boom(); const p = a.at.clone().setY(0.4);
+          ring(p, 0xff7a2e, 9, 0.6); ring(p, 0xffd23f, 6, 0.45, false, new V3(0, 0, 1));
+          sparks(p, 0xff7a2e, 60, 16, 0.8, 0.8, 4); sparks(p, 0xffd23f, 30, 12, 0.6, 0.6, 4);
+          dust(p, 18, 3, 2.4, 1.5, 0x5a4a45); debris(p, 18, 12); crater(a.at, 4.2);
+        }
+        const dx = foe.pos.x - a.at.x, dz = foe.pos.z - a.at.z, d = Math.hypot(dx, dz);
+        if (d < a.r && foe.pos.y < 2.5) foe.takeHit(a.dmg*P, d > 0.01 ? new V3(dx, 0, dz) : this.faceDir(), 14, 10, this, 'huge');
+      }
+    } else if (a.type === 'storm'){
+      a.next -= dt;
+      if (a.next <= 0 && a.n < 5){
+        a.next = 0.18; a.n++;
+        if (!this.ghost && a.lock){
+          const ang = rand(0, Math.PI*2); this.pos.x = foe.pos.x + Math.cos(ang)*1.3; this.pos.z = foe.pos.z + Math.sin(ang)*1.3; this.clampArena();
+          this.yaw = Math.atan2(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
+        }
+        smoke(this.center(), 0x6a3aa8); sfx.dash();
+        if (a.lock){ const last = a.n === 5, tw = this.toward(foe); foe.takeHit(6*P, tw.dir, last ? 16 : 3, last ? 8 : 0, this, last ? 'big' : 'small'); }
+        this.combo = a.n % 2; this.atk = this.atkDur = 0.16; this.hitDone = true;
+      }
+      if (a.n >= 5 && a.next <= 0){ a.t = 0; this.glow = 0; }
+    } else if (a.type === 'slam'){
+      if (Math.random() < 0.4) dust(this.pos.clone().setY(0.1), 1, 1.5, 1, 0.6);
+      if (a.t <= 0){
+        sfx.boom(); shake = 1.2; this.glow = 0;
+        const f = this.faceDir();
+        for (let i=1;i<=7;i++){ const p = this.pos.clone().addScaledVector(f, i*2).setY(0.1); dust(p, 4, 1.2, 1.7, 1.1, 0x7a6a58); debris(p, 4, 9); if (i % 2) crater(p, 1.7); }
+        ring(this.pos.clone().setY(0.15), 0xff9a3a, 4, 0.5);
+        const ox = foe.pos.x - this.pos.x, oz = foe.pos.z - this.pos.z, along = ox*f.x + oz*f.z, perp = Math.abs(ox*f.z - oz*f.x);
+        if (along > 0 && along < 14.5 && perp < 2.6 && foe.pos.y < 2.5) foe.takeHit(34*P, f, 18, 11, this, 'huge');
       }
     }
     if (this.action && this.action.t <= 0) this.action = null;
@@ -1428,12 +1730,25 @@ class Fighter {
       else if (a.type === 'throw'){ Object.assign(T, {sLx:-1.5, eL:0, sRx:-1.5, eR:0, sLz:0.25, sRz:-0.25, lean:0.2, twist:0}); }
       else if (a.type === 'nova'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, lean:-0.1, headX:-0.3}); }
       else if (a.type === 'air'){ Object.assign(T, {sRx:-2.9, eR:-0.3, sLx:-2.9, eL:-0.3, sLz:0.2, sRz:-0.2, twist:0}); }
+      else if (a.type === 'whip' || a.type === 'tele'){ Object.assign(T, {sRx:-1.6, eR:-0.05, sRz:-0.1, twist:-0.5, lean:0.25}); }
+      else if (a.type === 'blizzard' || a.type === 'burst'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, lean:-0.1, headX:-0.3}); }
+      else if (a.type === 'target'){ Object.assign(T, {sRx:-2.9, eR:-0.2, sLx:-2.9, eL:-0.2, sLz:0.15, sRz:-0.15, twist:0, headX:-0.3}); }
+      else if (a.type === 'slam'){
+        if (a.t > 0.12) Object.assign(T, {sLx:-2.9, sRx:-2.9, eL:-0.4, eR:-0.4, twist:0, lean:-0.15, headX:-0.2});
+        else Object.assign(T, {sLx:-1.0, sRx:-1.0, eL:-0.2, eR:-0.2, twist:0, lean:0.55, crouch:-0.22, kL:1.0, kR:1.0, hL:-0.7, hR:-0.7});
+      }
     }
     if (this.dashT > 0 && !a) Object.assign(T, {lean:0.55, sLx:0.7, sRx:0.7, eL:-0.4, eR:-0.4, hL:-0.6, kL:0.8, hR:0.5, kR:0.3, twist:0});
     if (!this.onGround && !a && this.dashT <= 0 && this.kd <= 0 && !this.ko){ T.hL = -0.9; T.kL = 1.5; T.hR = -0.2; T.kR = 0.9; if (this.vy > 0){ T.sLx = -1.1; T.sRx = -1.1; } }
     if (this.stun > 0 && !this.blocking && this.kd <= 0) Object.assign(T, {lean:-0.35, sLz:-0.7, sRz:0.7, eL:-0.4, eR:-0.4, sLx:0.3, sRx:0.3, headX:-0.35, twist:0});
     if (this.ko || this.kd > 0) Object.assign(T, {lie:1, sLz:-0.5, sRz:0.5, sLx:0, sRx:0, eL:-0.3, eR:-0.3, hL:0, kL:0.1, hR:-0.1, kR:0.3, twist:0, lean:0, crouch:0, headX:0});
     const C = this.cur, k = 1 - Math.exp(-24*dt), kl = 1 - Math.exp(-9*dt);
+    if (this.frozen > 0 && !this.ko) for (const key of POSE_KEYS) T[key] = C[key];
+    this.blinkT = (this.blinkT === undefined ? rand(1, 4) : this.blinkT) - dt;
+    if (this.blinkT < 0) this.blinkT = rand(2, 5);
+    const closed = this.blinkT < 0.12 || this.ko || this.kd > 0;
+    m.eyes.forEach(e => { e.scale.y = closed ? 0.12 : 1; });
+    if (m.halo){ m.halo.visible = !this.ko; m.halo.rotation.set(1.25 + Math.sin(t)*0.1, t*1.6, 0.25); }
     for (const key of POSE_KEYS) C[key] += (T[key] - C[key])*(key === 'lie' ? kl : k);
     m.armL.rotation.set(C.sLx, 0, C.sLz); m.armR.rotation.set(C.sRx, 0, C.sRz);
     m.elbowL.rotation.x = C.eL; m.elbowR.rotation.x = C.eR;
@@ -1453,39 +1768,65 @@ class Fighter {
     this.setEmissive(this.flash > 0 ? 0.8 : 0);
   }
   setEmissive(f){
-    for (const mm of this.m.mats){ if (f > 0) mm.emissive.setRGB(f, f, f); else mm.emissive.copy(mm.userData.be); }
+    for (const mm of this.m.mats){ if (f > 0) mm.emissive.setRGB(f, f, f); else if (this.frozen > 0) mm.emissive.setRGB(0.12, 0.3, 0.45); else mm.emissive.copy(mm.userData.be); }
     if (this.glow > 0 && f === 0){ this.m.acc.emissive.copy(col(this.def.accent)); this.m.acc.emissiveIntensity = 0.8 + Math.sin(performance.now()/40)*0.3; }
     else this.m.acc.emissiveIntensity = 1;
   }
 }
 
-/* ----- fireballs and air blasts ----- */
+/* ----- fireballs, ice spears, rocks, water and waves ----- */
 function spawnProjectile(owner, pos, vel, o){
-  const geo = o.wind ? new THREE.SphereGeometry(o.size, 16, 12) : new THREE.IcosahedronGeometry(o.size, 1);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({color:col(o.color), transparent:true, opacity:o.wind ? 0.35 : 0.95, blending: o.wind ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite:false}));
-  mesh.position.copy(pos); scene.add(mesh);
+  let geo, mat;
+  if (o.wave){
+    geo = new THREE.BoxGeometry(7, 3, 1.4);
+    mat = new THREE.MeshStandardMaterial({color:col(0x2a8ae0), transparent:true, opacity:0.82, roughness:0.15, metalness:0.1});
+  } else if (o.solid){
+    geo = new THREE.DodecahedronGeometry(o.size, 0);
+    mat = new THREE.MeshStandardMaterial({color:col(o.color), roughness:0.95, flatShading:true});
+  } else if (o.spear){
+    geo = new THREE.ConeGeometry(o.size*0.35, o.size*3.2, 6); geo.rotateX(Math.PI/2);
+    mat = new THREE.MeshStandardMaterial({color:col(o.color), emissive:col(o.color), emissiveIntensity:0.5, roughness:0.1, transparent:true, opacity:0.9});
+  } else {
+    geo = o.wind ? new THREE.SphereGeometry(o.size, 16, 12) : new THREE.IcosahedronGeometry(o.size, 1);
+    mat = new THREE.MeshBasicMaterial({color:col(o.color), transparent:true, opacity:o.wind ? 0.35 : 0.95, blending: o.wind ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite:false});
+  }
+  const mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos);
+  if (o.wave || o.spear) mesh.lookAt(pos.clone().add(vel));
+  if (o.wave){ const foam = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.35, 1.5), new THREE.MeshBasicMaterial({color:col(0xffffff), transparent:true, opacity:0.85})); foam.position.y = 1.5; mesh.add(foam); }
+  scene.add(mesh);
   projectiles.push(Object.assign({owner, mesh, vel, life:1.4}, o));
 }
+function disposeObj(obj){ obj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); }
 function updateProjectiles(dt){
   for (let i=projectiles.length-1;i>=0;i--){
-    const p = projectiles[i], foe = p.owner === player ? rival : player;
-    p.life -= dt; p.mesh.position.addScaledVector(p.vel, dt);
-    p.mesh.rotation.x += dt*8; p.mesh.rotation.y += dt*6;
-    if (p.wind){ if (Math.random() < 0.7) dust(p.mesh.position, 1, 0.3, 1.2, 0.4, 0xe8eef8); }
-    else sparks(p.mesh.position, Math.random() < 0.5 ? 0xffd23f : 0xff3b1a, 2, 1.5, 0.3, 0.5, 0.5);
+    const p = projectiles[i], foe = p.owner === player ? rival : player, mp = p.mesh.position;
+    const prev = mp.clone();
+    p.life -= dt; mp.addScaledVector(p.vel, dt);
+    if (!p.wave && !p.spear){ p.mesh.rotation.x += dt*8; p.mesh.rotation.y += dt*6; }
+    if (p.wind){ if (Math.random() < 0.7) dust(mp, 1, 0.3, 1.2, 0.4, 0xe8eef8); }
+    else if (p.wave){ sparks(mp.clone().add(new V3(rand(-3, 3), 1.4, 0)), 0xffffff, 2, 3, 0.4, 0.5, 2); if (Math.random() < 0.5) dust(mp.clone().setY(0.2), 1, 2, 1.5, 0.6, 0xe8f6ff); }
+    else if (p.solid){ if (Math.random() < 0.4) dust(mp, 1, 0.3, 0.8, 0.4); }
+    else if (p.spear) sparks(mp, 0xcff6ff, 1, 1, 0.3, 0.35, 0);
+    else if (p.water) sparks(mp, Math.random() < 0.5 ? 0x5ad8ff : 0xffffff, 2, 1.5, 0.3, 0.45, 0.5);
+    else sparks(mp, Math.random() < 0.5 ? 0xffd23f : 0xff3b1a, 2, 1.5, 0.3, 0.5, 0.5);
     const c = foe.center(), hitR = p.radius + 0.6*foe.def.size;
-    let gone = p.life <= 0 || Math.hypot(p.mesh.position.x, p.mesh.position.z) > ARENA_R + 3;
-    if (!gone && c.distanceTo(p.mesh.position) < hitR + 0.5 && !foe.ko){
-      foe.takeHit(p.dmg*p.owner.def.power*p.owner.dmgMul, p.vel.clone(), p.force, p.lift, p.owner, p.kind);
+    let gone = p.life <= 0 || Math.hypot(mp.x, mp.z) > ARENA_R + 3;
+    // check the whole path this frame, so fast shots can't skip past a rival on slow devices
+    const seg = mp.clone().sub(prev), sl = seg.lengthSq(), tt = sl > 0 ? clamp(c.clone().sub(prev).dot(seg)/sl, 0, 1) : 1;
+    if (!gone && c.distanceTo(prev.clone().addScaledVector(seg, tt)) < hitR + 0.5 && !foe.ko){
+      foe.takeHit(p.dmg*p.owner.def.power*p.owner.dmgMul, p.vel.clone(), p.force, p.lift, p.owner, p.kind, {freeze:p.freeze});
       gone = true;
     }
     if (gone){
-      if (p.splash){ sparks(p.mesh.position, 0xff6a1a, 25, 9, 0.5, 0.6); dust(p.mesh.position, 6, 1, 1.4, 0.8, 0x5a4a45); ring(p.mesh.position, 0xffd23f, p.splash, 0.35, false, p.vel.clone().normalize()); }
-      scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); projectiles.splice(i, 1);
+      if (p.splash){ sparks(mp, 0xff6a1a, 25, 9, 0.5, 0.6); dust(mp, 6, 1, 1.4, 0.8, 0x5a4a45); ring(mp, 0xffd23f, p.splash, 0.35, false, p.vel.clone().normalize()); }
+      if (p.water || p.wave){ sparks(mp, 0x5ad8ff, p.wave ? 50 : 20, 8, 0.6, 0.5, 3); dust(mp, p.wave ? 14 : 5, p.wave ? 3 : 1, 1.4, 0.8, 0xeaf6ff); }
+      if (p.solid){ debris(mp, 8, 7); dust(mp, 6, 1, 1.4, 0.8, 0x8a8070); }
+      if (p.spear) sparks(mp, 0xcff6ff, 16, 6, 0.4, 0.4, 1);
+      scene.remove(p.mesh); disposeObj(p.mesh); projectiles.splice(i, 1);
     }
   }
 }
-function clearProjectiles(){ for (const p of projectiles){ scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); } projectiles.length = 0; }
+function clearProjectiles(){ for (const p of projectiles){ scene.remove(p.mesh); disposeObj(p.mesh); } projectiles.length = 0; clearTemps(); }
 
 /* =========================================================
    COMPUTER RIVAL BRAIN
@@ -1505,14 +1846,14 @@ class AI {
     else mv = side.clone().multiplyScalar(0.35);
     inp.mx = mv.x; inp.mz = mv.z;
     if (this.blockT > 0){ inp.block = true; return inp; }
-    if (f.meter >= 100 && dist < (f.def.id === 'titan' ? 9 : 6.5) && Math.random() < dt*2.5) inp.ultimate = true;
+    if (f.meter >= 100 && dist < (UL_RANGE[f.def.ul] || 7) && Math.random() < dt*2.5) inp.ultimate = true;
     if (this.t <= 0){
       this.t = D.react*rand(0.6, 1.4);
       if ((foe.atk > 0 || (foe.action && foe.action.type !== 'air')) && dist < 3.2 && Math.random() < D.block){ this.blockT = rand(0.35, 0.7); inp.block = true; return inp; }
       if (dist < reach + 0.2){ inp.attack = true; if (f.combo < 2) this.t = Math.min(this.t, 0.26); }
       else if (f.specCd <= 0 && Math.random() < D.special){
-        const id = f.def.id;
-        if ((id === 'volt' && dist < 9) || (id !== 'volt' && dist > 4 && dist < 16)) inp.special = true;
+        const rg = SP_RANGE[f.def.sp] || [0, 16];
+        if (dist >= rg[0] && dist <= rg[1]) inp.special = true;
       }
       if ((foe.atk > 0 || foe.action) && dist < 4 && Math.random() < D.dodge){
         inp.dash = true; const away = side.clone().add(dir.clone().multiplyScalar(-0.6)); inp.mx = away.x; inp.mz = away.z;
@@ -1676,7 +2017,7 @@ function sendPresence(){
   if (state !== 'menu' && player){
     const f = player, r2 = v => Math.round(v*100)/100;
     Object.assign(p, {x:r2(f.pos.x), y:r2(f.pos.y), z:r2(f.pos.z), yw:r2(f.yaw), mv:f.moving?1:0, st:f.stun>0?1:0, bk:f.blocking?1:0,
-      kd:f.kd>0?1:0, ko:f.ko?1:0, hp:r2(f.hp), me:Math.round(f.meter), da:f.dashT>0?1:0, a:net.acts, hi:net.hits});
+      kd:f.kd>0?1:0, fz:f.frozen>0?1:0, ko:f.ko?1:0, hp:r2(f.hp), me:Math.round(f.meter), da:f.dashT>0?1:0, a:net.acts, hi:net.hits});
   }
   if (net.role === 'host'){
     p.g = net.oppPeer || null;
@@ -1751,6 +2092,11 @@ function buildMenu(){
     const b = document.createElement('button'); b.className = 'card mini' + (h.id === rivalId ? ' sel' : ''); b.style.setProperty('--c', h.css);
     b.innerHTML = cardHTML(h); b.onclick = () => { rivalId = h.id; buildMenu(); refreshPreview(); };
     riv.appendChild(b);
+  });
+  const gc = $('#gfxChips'); gc.innerHTML = '';
+  [['pretty', 'PRETTY'], ['fast', 'FAST (older devices)']].forEach(([k, l]) => {
+    const c = document.createElement('button'); c.className = 'chip' + (k === gfx ? ' sel' : ''); c.textContent = l;
+    c.onclick = () => { gfx = k; try { localStorage.setItem('heroclash-gfx', k); } catch(e){} applyGfx(); buildMenu(); }; gc.appendChild(c);
   });
   Object.entries(DIFFS).forEach(([k, d]) => {
     const c = document.createElement('button'); c.className = 'chip' + (k === diffKey ? ' sel' : ''); c.textContent = d.label;

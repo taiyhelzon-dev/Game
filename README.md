@@ -33,9 +33,18 @@ On a phone or tablet, use the on-screen joystick and buttons.
 In online games, the player who creates the game picks the map.
 
 ## The heroes
-- **Volt**: the lightning kid. Fast, with a Lightning Dash and a Thunder Quake slam.
-- **Titan Max**: the giant pro hero. Slow but super strong, with an Air Cannon and Titan Crash.
-- **Flare**: the explosive rival. Throws fireballs and has a Supernova blast.
+| Hero | Power | Special | Ultimate |
+|---|---|---|---|
+| **Volt** | Lightning | Lightning Dash | Thunder Quake |
+| **Titan Max** | Super strength | Air Cannon | Titan Crash |
+| **Flare** | Fire | Fireball | Supernova |
+| **Glacia** | Ice (freezes rivals) | Ice Spear | Blizzard |
+| **Thorn** | Plants | Vine Whip (pulls rivals in) | Thorn Garden |
+| **Orbit** | Gravity | Gravity Pull | Meteor Fall |
+| **Prism** | Light | Light Beam | Rainbow Burst |
+| **Blink** | Teleporting | Shadow Step | Shadow Storm |
+| **Boulder** | Rock | Rock Throw | Earthquake |
+| **Riptide** | Water | Water Jet | Tidal Wave |
 
 ## Make it yours!
 Open `index.html` and find `THE HEROES`. Change the numbers (`speed`, `power`, `hp`)
