@@ -120,6 +120,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .pop{position:fixed;font-family:var(--display);font-size:34px;-webkit-text-stroke:2px #000;pointer-events:none;z-index:12;
   animation:pop .7s ease-out forwards;transform:translate(-50%,-50%)}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-12deg)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(-8deg)}100%{opacity:0;transform:translate(-50%,-140%) scale(1) rotate(-4deg)}}
+/* combo counter */
+.combo{font-family:var(--display);line-height:1;-webkit-text-stroke:2px #000;text-shadow:4px 4px 0 #000;margin-top:6px;transform:rotate(-3deg);transform-origin:left center}
+.p2 .combo{transform-origin:right center;text-align:right}
+.combo .n{font-size:44px;color:var(--gold)}
+.combo .w{display:block;font-size:24px;color:#fff}
+.combo.bump{animation:cbump .25s cubic-bezier(.2,1.8,.4,1)}
+@keyframes cbump{from{transform:scale(1.6) rotate(-6deg)}to{transform:scale(1) rotate(-3deg)}}
 /* floating damage numbers */
 .dmg{position:fixed;font-family:var(--display);-webkit-text-stroke:2px #000;text-shadow:3px 3px 0 #000;pointer-events:none;z-index:13;transform:translate(-50%,-50%);animation:dmg .95s ease-out forwards;font-variant-numeric:tabular-nums;line-height:1}
 @keyframes dmg{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}15%{opacity:1;transform:translate(-50%,-65%) scale(1.35)}30%{transform:translate(-50%,-80%) scale(1)}100%{opacity:0;transform:translate(-50%,-240%) scale(.9)}}
@@ -214,6 +221,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       <div class="meter" id="p1meter"><i id="p1m"></i></div>
       <div class="ult-tip" id="p1tip"></div>
       <div class="pips" id="p1pips"><span></span><span></span></div>
+      <div class="combo" id="p1combo" hidden><span class="n"></span><span class="w"></span></div>
     </div>
     <div class="clock" id="clock">60</div>
     <div class="side p2">
@@ -222,6 +230,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       <div class="meter" id="p2meter"><i id="p2m"></i></div>
       <div class="ult-tip" id="p2tip"></div>
       <div class="pips" id="p2pips"><span></span><span></span></div>
+      <div class="combo" id="p2combo" hidden><span class="n"></span><span class="w"></span></div>
     </div>
   </div>
   <div id="netTag" hidden>ONLINE</div>
@@ -1307,9 +1316,31 @@ function dmgNumber(f, amount){
   document.body.appendChild(el); setTimeout(() => el.remove(), 1000);
 }
 function watchDamage(f){
-  if (f._lastHp !== undefined && f.hp < f._lastHp - 0.05) dmgNumber(f, f._lastHp - f.hp);
+  let lost = 0;
+  if (f._lastHp !== undefined && f.hp < f._lastHp - 0.05){ lost = f._lastHp - f.hp; dmgNumber(f, lost); }
   f._lastHp = f.hp;
+  return lost;
 }
+// Combo counter: hits in a row without a long pause (blocked hits don't count)
+const combos = [{n:0, t:0, best:0}, {n:0, t:0, best:0}];
+const COMBO_WORDS = [[15, 'LEGENDARY!'], [12, 'UNSTOPPABLE!'], [8, 'AWESOME!'], [5, 'GREAT!'], [3, 'NICE!']];
+function showCombo(i){
+  const c = combos[i], el = $(i === 0 ? '#p1combo' : '#p2combo');
+  if (c.n < 2){ el.hidden = true; return; }
+  el.hidden = false;
+  el.querySelector('.n').textContent = c.n + ' HITS!';
+  const w = COMBO_WORDS.find(([k]) => c.n >= k); el.querySelector('.w').textContent = w ? w[1] : '';
+  el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+}
+function comboHit(i){
+  const c = combos[i];
+  c.n++; c.t = 1.5; c.best = Math.max(c.best, c.n);
+  if ([5, 8, 12, 15].includes(c.n)) sfx.bell();
+  showCombo(i);
+  if (combos[1-i].n){ combos[1-i].n = 0; showCombo(1-i); }
+}
+function tickCombos(dt){ combos.forEach((c, i) => { if (c.n && (c.t -= dt) <= 0){ c.n = 0; showCombo(i); } }); }
+function resetCombos(best){ combos.forEach((c, i) => { c.n = 0; c.t = 0; if (best) c.best = 0; showCombo(i); }); }
 
 function hitFx(victim, attacker, kind, blocked){
   const c = victim.center();
@@ -2493,6 +2524,7 @@ function showBanner(text, color, dur, small){
   clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), dur*1000);
 }
 function beginHUD(){
+  resetCombos(true);
   $('#menu').hidden = true; $('#over').hidden = true; $('#hud').hidden = false;
   $('#touch').hidden = !isTouch || mode === 'local2';
   $('#keys').hidden = isTouch && mode !== 'local2';
@@ -2524,7 +2556,7 @@ function resetRoundLocal(){
   camPos.set(player.pos.x + Math.sin(camYaw)*14, 6, player.pos.z + Math.cos(camYaw)*14);
 }
 function startRound(){
-  net.epoch++; resetRoundLocal();
+  net.epoch++; resetRoundLocal(); resetCombos(false);
   const boss = !!rival.isBoss;
   timeLeft = boss ? 180 : 60; state = 'intro'; updatePips();
   netBanner(boss ? 'MONSTER ATTACK!' : toWin === 1 ? 'GET READY!' : 'ROUND ' + round, boss ? '#ff5a1a' : '#ffffff', boss ? 2.0 : 1.1);
@@ -2563,7 +2595,9 @@ function showOver(p1Won){
   $('#againBtn').hidden = guest;
   $('#menuBtn').textContent = mode === 'online' ? 'BACK TO LOBBY' : 'CHANGE HEROES';
   if (guest) sub.textContent += ' Your friend can start a rematch.';
+  sub.textContent += mode === 'local2' ? ` Best combos: P1 ${combos[0].best} hits, P2 ${combos[1].best} hits.` : ` Your best combo: ${combos[0].best} hits!`;
   if (rival && rival.isBoss) sub.textContent = p1Won ? 'You defeated MAGMAW, the Volcano Titan! The city is safe.' : 'MAGMAW was too strong this time. Watch for his attacks and try again!';
+  if (rival && rival.isBoss) sub.textContent += ` Your best combo: ${combos[0].best} hits!`;
   $('#over').hidden = false; $('#touch').hidden = true;
 }
 function updatePips(){
@@ -2701,7 +2735,9 @@ function loop(){
       if (!rival.ghost && !rival.isBoss){ rival.pos.x += dx/d*push*0.5; rival.pos.z += dz/d*push*0.5; }
     }
     updateProjectiles(dt);
-    watchDamage(player); watchDamage(rival);
+    if (watchDamage(rival) >= 2) comboHit(0);
+    if (watchDamage(player) >= 2) comboHit(1);
+    tickCombos(dt);
     if (fighting && !(mode === 'online' && net.role === 'guest')){
       timeLeft -= dt;
       if (timeLeft <= 0){
