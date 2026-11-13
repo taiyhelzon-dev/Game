@@ -38,6 +38,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .mode small{display:block;font-family:var(--body);letter-spacing:0;font-size:12px;color:var(--muted);font-weight:800;margin-top:4px}
 .mode.sel{border-color:var(--gold);background:var(--panel-2)}
 .mode.sel small{color:var(--ink)}
+.mode .sw{height:38px;border-radius:8px;margin-bottom:8px}
 .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @media (max-width:640px){.cards{grid-template-columns:1fr}.mode{font-size:18px}}
 .card{background:var(--panel);border:3px solid transparent;border-radius:14px;padding:12px 14px;text-align:left;color:var(--ink);
@@ -140,12 +141,15 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       <button class="mode" data-mode="local2">2 PLAYERS<small>Same keyboard</small></button>
       <button class="mode" data-mode="online">ONLINE<small>Play a friend with a code</small></button>
     </div>
-    <div class="row-label" id="youLabel">1. Your hero</div>
+    <div class="row-label" id="youLabel">Your hero</div>
     <div class="cards" id="youCards"></div>
-    <div class="row-label" id="rivalLabel">2. Your rival (computer)</div>
+    <div class="row-label" id="rivalLabel">Your rival (computer)</div>
     <div class="cards" id="rivalCards"></div>
+    <div class="row-label">Pick a map</div>
+    <div class="modes" id="mapCards"></div>
+    <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
     <div id="diffWrap">
-      <div class="row-label">3. How tough?</div>
+      <div class="row-label">How tough?</div>
       <div class="chips" id="diffChips" style="margin-top:10px"></div>
     </div>
 
@@ -343,16 +347,16 @@ function resize(){
 }
 window.addEventListener('resize', resize); resize();
 
-// Sunset sky
+// Sky (colours change with the map)
 const sky = new THREE.Mesh(new THREE.SphereGeometry(250, 32, 16), new THREE.ShaderMaterial({
   side:THREE.BackSide, depthWrite:false, fog:false,
-  uniforms:{top:{value:col(0x1c2766)}, mid:{value:col(0xf2876a)}, bot:{value:col(0x3a2c4f)}, sunDir:{value:new V3(-0.75,0.18,-0.5).normalize()}},
+  uniforms:{top:{value:col(0x1c2766)}, mid:{value:col(0xf2876a)}, bot:{value:col(0x3a2c4f)}, sunDir:{value:new V3(-0.75,0.18,-0.5).normalize()}, sunCol:{value:new V3(1.0,0.75,0.45)}},
   vertexShader:'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader:'uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sunDir; varying vec3 vP; void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, pow(smoothstep(0.0, 0.55, h), 0.65)) : mix(mid, bot, smoothstep(0.0, 0.12, -h)); float s = max(dot(normalize(vP), sunDir), 0.0); c += vec3(1.0,0.75,0.45)*(pow(s, 600.0)*4.0 + pow(s, 12.0)*0.35); gl_FragColor = vec4(c, 1.0); }'
+  fragmentShader:'uniform vec3 top; uniform vec3 mid; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vP; void main(){ float h = vP.y; vec3 c = h > 0.0 ? mix(mid, top, pow(smoothstep(0.0, 0.55, h), 0.65)) : mix(mid, bot, smoothstep(0.0, 0.12, -h)); float s = max(dot(normalize(vP), sunDir), 0.0); c += sunCol*(pow(s, 600.0)*4.0 + pow(s, 12.0)*0.35); gl_FragColor = vec4(c, 1.0); }'
 }));
 scene.add(sky);
 
-scene.add(new THREE.HemisphereLight(col(0x9fb0ff), col(0x5a4040), 0.8));
+const hemi = new THREE.HemisphereLight(col(0x9fb0ff), col(0x5a4040), 0.8); scene.add(hemi);
 const sun = new THREE.DirectionalLight(col(0xffc28c), 2.3);
 sun.position.set(-26, 22, -17); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
@@ -407,37 +411,253 @@ const softTex = canvasTex(64, 64, (g) => {
   g.fillStyle = gr; g.fillRect(0,0,64,64);
 }, false);
 
-// Street lamps around the arena
+/* =========================================================
+   MAPS: Hero City, Tokyo and Los Angeles
+   ========================================================= */
 const metal = new THREE.MeshStandardMaterial({color:col(0x2a2d36), roughness:0.4, metalness:0.7});
-for (let i=0;i<8;i++){
-  const a = i/8*Math.PI*2 + Math.PI/8, r = ARENA_R + 3.2, x = Math.cos(a)*r, z = Math.sin(a)*r;
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 6, 10), metal); pole.position.set(x, 3, z); pole.castShadow = true; scene.add(pole);
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.2), metal);
-  arm.position.set(x - Math.cos(a)*0.55, 5.95, z - Math.sin(a)*0.55); arm.rotation.y = -a + Math.PI/2; scene.add(arm);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshBasicMaterial({color:col(0xffe6b0)}));
-  head.position.set(x - Math.cos(a)*1.1, 5.88, z - Math.sin(a)*1.1); head.rotation.y = -a + Math.PI/2; scene.add(head);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({map:softTex, color:col(0xffc070), transparent:true, opacity:0.55, blending:THREE.AdditiveBlending, depthWrite:false}));
-  glow.position.copy(head.position); glow.scale.set(3, 3, 1); scene.add(glow);
-}
-// City buildings
-function windowTex(){
-  const lit = []; for (let i=0;i<16;i++) lit.push(Math.random() < 0.42);
+let mapGroup = null, mapTick = null, mapId = 'city';
+const groundTex = {
+  asphalt: asphaltTex,
+  wet: canvasTex(256, 256, (g, w) => { g.fillStyle = '#1d1f2c'; g.fillRect(0,0,w,w); speckle(g, w, w, 2500, 'rgba(160,170,255,0.08)', 'rgba(0,0,0,0.3)'); }),
+  sand: canvasTex(256, 256, (g, w) => { g.fillStyle = '#d6bd8a'; g.fillRect(0,0,w,w); speckle(g, w, w, 6000, 'rgba(255,250,235,0.25)', 'rgba(120,90,50,0.18)'); })
+};
+['wet','sand'].forEach(k => { groundTex[k].wrapS = groundTex[k].wrapT = THREE.RepeatWrapping; groundTex[k].repeat.set(40, 40); });
+
+function windowTex(o){
+  const lit = []; for (let i=0;i<16;i++) lit.push(Math.random() < o.chance);
   const draw = emi => canvasTex(64, 64, (g) => {
-    g.fillStyle = emi ? '#000' : '#a3a3a8'; g.fillRect(0,0,64,64); let n = 0;
-    for (let y=4;y<64;y+=16) for (let x=4;x<64;x+=16){ const on = lit[n++]; if (emi){ if (on){ g.fillStyle = '#ffd59a'; g.fillRect(x,y,8,9); } } else { g.fillStyle = on ? '#e8d8b0' : '#28303e'; g.fillRect(x,y,8,9); } }
+    g.fillStyle = emi ? '#000' : o.wall; g.fillRect(0,0,64,64); let n = 0;
+    for (let y=4;y<64;y+=16) for (let x=4;x<64;x+=16){
+      const on = lit[n++];
+      if (emi){ if (on){ g.fillStyle = o.lit; g.fillRect(x,y,8,9); } }
+      else { g.fillStyle = on ? o.day : o.dark; g.fillRect(x,y,8,9); }
+    }
   });
   return [draw(false), draw(true)];
 }
-const winSets = [windowTex(), windowTex(), windowTex()];
-const tints = [0x6a7080, 0x7a6a66, 0x5e6a7a, 0x8a827a, 0x55606e];
-for (let i=0;i<52;i++){
-  const a = i/52*Math.PI*2 + rand(-0.04,0.04), r = rand(38, 70), w = rand(6,11), h = rand(12,48), d = rand(6,11);
-  const [mt, et] = winSets[i%3], rx = Math.max(1, Math.round(w/2.5)), ry = Math.max(1, Math.round(h/2.5));
-  const m1 = mt.clone(), m2 = et.clone(); [m1, m2].forEach(t => { t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); });
-  const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({map:m1, color:col(tints[i%tints.length]), emissive:col(0xffd59a), emissiveMap:m2, emissiveIntensity:0.9, roughness:0.85}));
-  b.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r); b.rotation.y = -a; scene.add(b);
-  if (Math.random() < 0.4){ const top = new THREE.Mesh(new THREE.BoxGeometry(w*0.4, 2, d*0.4), concrete); top.position.set(b.position.x, h+1, b.position.z); top.rotation.y = -a; scene.add(top); }
+function addBuildings(g, o){
+  const sets = [windowTex(o), windowTex(o), windowTex(o)];
+  for (let i=0;i<o.n;i++){
+    const a = o.a0 + (i + 0.5)/o.n*(o.a1 - o.a0) + rand(-0.04, 0.04), r = rand(o.r0, o.r1), w = rand(o.w0, o.w1), h = rand(o.h0, o.h1), d = rand(o.w0, o.w1);
+    const [mt, et] = sets[i%3], rx = Math.max(1, Math.round(w/2.5)), ry = Math.max(1, Math.round(h/2.5));
+    const m1 = mt.clone(), m2 = et.clone(); [m1, m2].forEach(t => { t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); });
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({map:m1, color:col(o.tints[i%o.tints.length]), emissive:col(0xffffff), emissiveMap:m2, emissiveIntensity:o.glow, roughness:0.85}));
+    b.position.set(Math.cos(a)*r, h/2, Math.sin(a)*r); b.rotation.y = -a; g.add(b);
+    if (o.roof && Math.random() < 0.4){ const top = new THREE.Mesh(new THREE.BoxGeometry(w*0.4, 2, d*0.4), concrete); top.position.set(b.position.x, h+1, b.position.z); top.rotation.y = -a; g.add(top); }
+    if (o.each) o.each(a, r, w, h, d);
+  }
 }
+function glowSprite(color, size, opacity=0.55){
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:softTex, color:col(color), transparent:true, opacity, blending:THREE.AdditiveBlending, depthWrite:false}));
+  s.scale.set(size, size, 1); return s;
+}
+function clearMap(){
+  if (!mapGroup) return;
+  scene.remove(mapGroup);
+  const seen = new Set();
+  mapGroup.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    ms.forEach(m => {
+      if (seen.has(m) || m === metal || m === concrete) return; seen.add(m);
+      ['map','emissiveMap'].forEach(k => { if (m[k] && m[k] !== softTex) m[k].dispose(); });
+      m.dispose();
+    });
+  });
+  mapGroup = null; mapTick = null;
+}
+
+// ---- Hero City: sunset downtown ----
+function buildCity(g){
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2 + Math.PI/8, r = ARENA_R + 3.2, x = Math.cos(a)*r, z = Math.sin(a)*r;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 6, 10), metal); pole.position.set(x, 3, z); pole.castShadow = true; g.add(pole);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.2), metal);
+    arm.position.set(x - Math.cos(a)*0.55, 5.95, z - Math.sin(a)*0.55); arm.rotation.y = -a + Math.PI/2; g.add(arm);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.3), new THREE.MeshBasicMaterial({color:col(0xffe6b0)}));
+    head.position.set(x - Math.cos(a)*1.1, 5.88, z - Math.sin(a)*1.1); head.rotation.y = -a + Math.PI/2; g.add(head);
+    const glow = glowSprite(0xffc070, 3); glow.position.copy(head.position); g.add(glow);
+  }
+  addBuildings(g, {n:52, a0:0, a1:Math.PI*2, r0:38, r1:70, w0:6, w1:11, h0:12, h1:48, tints:[0x6a7080, 0x7a6a66, 0x5e6a7a, 0x8a827a, 0x55606e],
+    lit:'#ffd59a', wall:'#a3a3a8', dark:'#28303e', day:'#e8d8b0', chance:0.42, glow:0.9, roof:true});
+}
+
+// ---- Tokyo: neon nights and cherry blossoms ----
+const NEON = ['#ff3fa4', '#2ef2ff', '#ffe23f', '#7dff5a', '#ff7a2e', '#b56bff'];
+const SIGN_V = ['ラーメン', 'カラオケ', 'ゲーム', 'すし', 'ホテル', 'カフェ', 'ヒーロー', 'まんが'];
+const SIGN_H = ['HERO TV', 'ARCADE', 'NOODLES', '24H', 'KARAOKE', 'SUSHI'];
+function neonSign(text, color, vertical){
+  const W = vertical ? 64 : 256, H = vertical ? 256 : 80;
+  const t = canvasTex(W, H, (g) => {
+    g.fillStyle = '#0b0b14'; g.fillRect(0,0,W,H);
+    g.strokeStyle = color; g.lineWidth = 4; g.shadowColor = color; g.shadowBlur = 10; g.strokeRect(5,5,W-10,H-10);
+    g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (vertical){
+      const chars = [...text], step = Math.min(56, (H - 24)/chars.length);
+      g.font = `bold ${Math.floor(step*0.85)}px sans-serif`;
+      chars.forEach((c, i) => { g.shadowBlur = 14; g.fillStyle = color; g.fillText(c, W/2, 14 + step*(i + 0.5)); g.shadowBlur = 0; g.fillStyle = '#ffffffcc'; g.fillText(c, W/2, 14 + step*(i + 0.5)); });
+    } else {
+      g.font = 'bold 44px sans-serif'; g.shadowBlur = 14; g.fillStyle = color; g.fillText(text, W/2, H/2 + 2); g.shadowBlur = 0; g.fillStyle = '#ffffffcc'; g.fillText(text, W/2, H/2 + 2);
+    }
+  });
+  return new THREE.MeshBasicMaterial({map:t, toneMapped:false});
+}
+function buildTokyo(g){
+  const signs = [];
+  addBuildings(g, {n:60, a0:0, a1:Math.PI*2, r0:36, r1:72, w0:6, w1:10, h0:20, h1:68, tints:[0x3a3f58, 0x45405e, 0x333a50, 0x4a4a62],
+    lit:'#bfe4ff', wall:'#6a6f80', dark:'#141826', day:'#cfe8ff', chance:0.5, glow:1.3, roof:true,
+    each:(a, r, w, h, d) => {
+      if (Math.random() < 0.75){
+        const vertical = Math.random() < 0.6, color = NEON[(Math.random()*NEON.length)|0];
+        const text = vertical ? SIGN_V[(Math.random()*SIGN_V.length)|0] : SIGN_H[(Math.random()*SIGN_H.length)|0];
+        const m = neonSign(text, color, vertical); signs.push(m);
+        const sw = vertical ? 1.6 : 6, shh = vertical ? 6.4 : 1.9;
+        const sg = new THREE.Mesh(new THREE.PlaneGeometry(sw, shh), m);
+        const y = clamp(rand(7, 18), 4, h - 3), off = rand(-w/3, w/3), rr = r - d/2 - 0.25;
+        sg.position.set(Math.cos(a)*rr - Math.sin(a)*off, y, Math.sin(a)*rr + Math.cos(a)*off);
+        sg.lookAt(0, y, 0); g.add(sg);
+        const gl = glowSprite(parseInt(color.slice(1), 16), vertical ? 6 : 8, 0.35); gl.position.copy(sg.position).multiplyScalar(0.985); g.add(gl);
+      }
+    }});
+  // a red and white broadcast tower in the distance
+  const tower = new THREE.Group(); tower.position.set(-62, 0, -92); g.add(tower);
+  const red = new THREE.MeshBasicMaterial({color:col(0xff5a1f), wireframe:true, fog:false}), white = new THREE.MeshBasicMaterial({color:col(0xf4f0e8), wireframe:true, fog:false});
+  const segs = 10, H = 112;
+  for (let k=0;k<segs;k++){
+    const y0 = k/segs*H, y1 = (k+1)/segs*H, r0 = mix(13, 1.2, Math.pow(k/segs, 0.7)), r1 = mix(13, 1.2, Math.pow((k+1)/segs, 0.7));
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, y1 - y0, 4, 3, true), k % 2 ? white : red);
+    s.position.y = (y0 + y1)/2; s.rotation.y = Math.PI/4; tower.add(s);
+  }
+  [[0.4, 6.5], [0.68, 3.6]].forEach(([f, r]) => {
+    const deck = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 3, 8), new THREE.MeshBasicMaterial({color:col(0xffd59a), fog:false}));
+    deck.position.y = f*H; tower.add(deck);
+  });
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.4, 14, 6), new THREE.MeshBasicMaterial({color:col(0xf4f0e8), fog:false})); ant.position.y = H + 7; tower.add(ant);
+  const beacon = glowSprite(0xff2020, 8, 0.9); beacon.material.fog = false; beacon.position.y = H + 14; tower.add(beacon);
+  const tglow = glowSprite(0xff7a3a, 70, 0.18); tglow.material.fog = false; tglow.position.y = H*0.45; tower.add(tglow);
+  // paper lantern posts
+  const wood = new THREE.MeshStandardMaterial({color:col(0x3a2418), roughness:0.8});
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2 + Math.PI/8, r = ARENA_R + 3, x = Math.cos(a)*r, z = Math.sin(a)*r;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.2, 0.22), wood); post.position.set(x, 2.1, z); post.castShadow = true; g.add(post);
+    const lan = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), new THREE.MeshStandardMaterial({color:col(0xd8261c), emissive:col(0xff3a20), emissiveIntensity:1.4, roughness:0.6}));
+    lan.scale.y = 1.3; lan.position.set(x, 4.8, z); g.add(lan);
+    const gl = glowSprite(0xff4a2a, 4.5, 0.6); gl.position.set(x, 4.8, z); g.add(gl);
+  }
+  // cherry blossom trees
+  const bark = new THREE.MeshStandardMaterial({color:col(0x4a3226), roughness:0.9});
+  const blossom = [0xffb7d5, 0xff9ec8, 0xffc9e0].map(c => new THREE.MeshStandardMaterial({color:col(c), emissive:col(c), emissiveIntensity:0.18, roughness:0.8, flatShading:true}));
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2, r = ARENA_R + 5.5, tree = new THREE.Group(); tree.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); tree.rotation.y = rand(0, 6); g.add(tree);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.38, 3.4, 8), bark); trunk.position.y = 1.7; trunk.rotation.z = 0.12; trunk.castShadow = true; tree.add(trunk);
+    for (let b=0;b<3;b++){ const br = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 2, 6), bark); br.position.set(Math.cos(b*2.1)*0.6, 3.6, Math.sin(b*2.1)*0.6); br.rotation.set(Math.sin(b*2.1)*0.7, 0, -Math.cos(b*2.1)*0.7); tree.add(br); }
+    for (let c=0;c<8;c++){ const bl = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(1.0, 1.7), 1), blossom[c%3]); bl.position.set(rand(-1.8,1.8), rand(3.8, 5.4), rand(-1.8,1.8)); bl.castShadow = true; tree.add(bl); }
+  }
+  // falling petals
+  const N = 220, petals = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.12, 0.09), new THREE.MeshBasicMaterial({color:col(0xffc2dc), side:THREE.DoubleSide}), N);
+  const P = []; for (let i=0;i<N;i++) P.push({x:rand(-28,28), y:rand(0,14), z:rand(-28,28), s:rand(0,6), v:rand(0.5,1.1)});
+  const dummy = new THREE.Object3D(); g.add(petals);
+  mapTick = (dt) => {
+    const t = performance.now()/1000;
+    for (let i=0;i<N;i++){
+      const p = P[i]; p.y -= p.v*dt; p.x += Math.sin(t*0.8 + p.s)*0.6*dt + 0.25*dt; p.z += Math.cos(t*0.6 + p.s)*0.4*dt;
+      if (p.y < 0){ p.y = rand(10, 14); p.x = rand(-28,28); p.z = rand(-28,28); }
+      dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(t*2 + p.s, t*1.3 + p.s, 0); dummy.updateMatrix(); petals.setMatrixAt(i, dummy.matrix);
+    }
+    petals.instanceMatrix.needsUpdate = true;
+    if (Math.random() < 0.04 && signs.length){ const m = signs[(Math.random()*signs.length)|0]; m.color.setScalar(0.35); setTimeout(() => m.color.setScalar(1), 90); }
+    beacon.material.opacity = 0.5 + 0.5*Math.sin(t*3);
+  };
+}
+
+// ---- Los Angeles: sunny beach and palm trees ----
+function buildLA(g){
+  // ocean on one side
+  const waveTex = canvasTex(128, 128, (c, w) => {
+    c.fillStyle = '#1f78b4'; c.fillRect(0,0,w,w);
+    for (let i=0;i<60;i++){ c.strokeStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(10,60,120,0.4)'; c.lineWidth = 2; const x = Math.random()*w, y = Math.random()*w; c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x+8, y-4, x+16, y); c.stroke(); }
+  });
+  waveTex.wrapS = waveTex.wrapT = THREE.RepeatWrapping; waveTex.repeat.set(30, 16);
+  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(500, 230), new THREE.MeshStandardMaterial({map:waveTex, color:col(0x9fd2ff), roughness:0.25, metalness:0.3}));
+  ocean.rotation.x = -Math.PI/2; ocean.position.set(0, 0.03, 158); g.add(ocean);
+  const foam = new THREE.Mesh(new THREE.PlaneGeometry(500, 1.6), new THREE.MeshBasicMaterial({color:col(0xffffff), transparent:true, opacity:0.75}));
+  foam.rotation.x = -Math.PI/2; foam.position.set(0, 0.05, 43.5); g.add(foam);
+  // houses and shops behind the beach, downtown towers further back
+  addBuildings(g, {n:26, a0:Math.PI + 0.12, a1:Math.PI*2 - 0.12, r0:40, r1:62, w0:7, w1:12, h0:6, h1:20, tints:[0xf2e6d0, 0xe8d2b8, 0xf5c6b8, 0xbfe0dc, 0xffffff, 0xf7e2a6],
+    lit:'#000000', wall:'#f2eee6', dark:'#5a7a98', day:'#a8d0ee', chance:0.3, glow:0, roof:false});
+  const glass = new THREE.MeshStandardMaterial({color:col(0x86b2dc), roughness:0.12, metalness:0.65});
+  for (let i=0;i<9;i++){
+    const w = rand(7, 12), h = rand(40, 85), t = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), glass);
+    t.position.set(-30 + i*7.5 + rand(-2,2), h/2, -110 - rand(0, 20)); g.add(t);
+  }
+  // mountains far away
+  const hill = new THREE.MeshStandardMaterial({color:col(0x8c7a58), roughness:1, flatShading:true});
+  for (let i=0;i<12;i++){
+    const a = Math.PI + 0.1 + i/11*(Math.PI - 0.2), r = rand(160, 200), m = new THREE.Mesh(new THREE.ConeGeometry(rand(30, 55), rand(28, 50), 7), hill);
+    m.position.set(Math.cos(a)*r, 10, Math.sin(a)*r); m.rotation.y = rand(0, 3); g.add(m);
+  }
+  // palm trees
+  const trunkM = new THREE.MeshStandardMaterial({color:col(0x8a6a48), roughness:0.9});
+  const leafM = new THREE.MeshStandardMaterial({color:col(0x3f8a3a), roughness:0.7, side:THREE.DoubleSide});
+  const nutM = new THREE.MeshStandardMaterial({color:col(0x5a3e22), roughness:0.8});
+  for (let i=0;i<12;i++){
+    const a = i/12*Math.PI*2 + 0.13, r = ARENA_R + rand(4, 6.5), palm = new THREE.Group();
+    palm.position.set(Math.cos(a)*r, 0, Math.sin(a)*r); palm.rotation.y = rand(0, 6); g.add(palm);
+    const segs = 9, lean = rand(0.04, 0.09); let p = new V3(0, 0, 0), ang = 0;
+    for (let k=0;k<segs;k++){
+      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.2 - k*0.008, 0.26 - k*0.008, 1.05, 8), trunkM);
+      ang += lean; const dir = new V3(Math.sin(ang), Math.cos(ang), 0);
+      s.position.copy(p).addScaledVector(dir, 0.5); s.rotation.z = -ang; s.castShadow = true; palm.add(s);
+      p.addScaledVector(dir, 1.0);
+    }
+    const crown = new THREE.Group(); crown.position.copy(p); palm.add(crown);
+    for (let f=0;f<9;f++){
+      const fr = new THREE.Group(); fr.rotation.y = f/9*Math.PI*2 + rand(-0.1, 0.1); crown.add(fr);
+      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 3.2, 1, 4), leafM);
+      const pos = leaf.geometry.attributes.position;
+      for (let v=0; v<pos.count; v++){ const y = pos.getY(v), u = (y + 1.6)/3.2; pos.setX(v, pos.getX(v)*(1 - u*0.8)); pos.setZ(v, -u*u*1.4); }
+      leaf.geometry.computeVertexNormals(); leaf.geometry.translate(0, 1.6, 0);
+      leaf.rotation.x = rand(1.0, 1.35); leaf.castShadow = true; fr.add(leaf);
+    }
+    for (let c=0;c<3;c++){ const n = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), nutM); n.position.set(Math.cos(c*2.1)*0.25, -0.2, Math.sin(c*2.1)*0.25); crown.add(n); }
+  }
+  // lifeguard tower on the beach
+  const lg = new THREE.Group(); lg.position.set(14, 0, 36); lg.rotation.y = Math.PI + 0.3; g.add(lg);
+  const legM = new THREE.MeshStandardMaterial({color:col(0xf4f0e8), roughness:0.7});
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([x, z]) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 0.2), legM); l.position.set(x*1.1, 1.3, z*1.1); lg.add(l); });
+  const hut = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.8, 2.8), new THREE.MeshStandardMaterial({color:col(0x7fd0e8), roughness:0.6})); hut.position.y = 3.5; hut.castShadow = true; lg.add(hut);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.3, 0.9, 4), new THREE.MeshStandardMaterial({color:col(0xe2453a), roughness:0.6})); roof.position.y = 4.85; roof.rotation.y = Math.PI/4; lg.add(roof);
+  mapTick = (dt) => { waveTex.offset.x += dt*0.01; waveTex.offset.y += dt*0.006; foam.material.opacity = 0.55 + 0.25*Math.sin(performance.now()/700); };
+}
+
+const MAPS = {
+  city:  {label:'HERO CITY', sub:'Sunset downtown', swatch:'linear-gradient(#1c2766,#f2876a 75%,#5a5560)',
+          sky:[0x1c2766, 0xf2876a, 0x3a2c4f], sunDir:[-0.75, 0.18, -0.5], sunCol:[1.0, 0.75, 0.45], sunPos:[-26, 22, -17],
+          fog:[0x8a5a7a, 40, 120], sun:[0xffc28c, 2.3], hemi:[0x9fb0ff, 0x5a4040, 0.8], fill:[0x8aa8ff, 0.55], exposure:1.05, ground:'asphalt', led:0xff3b5c, build:buildCity},
+  tokyo: {label:'TOKYO', sub:'Neon nights and cherry blossoms', swatch:'linear-gradient(#090c2a,#4a2466 70%,#ff3fa4)',
+          sky:[0x070a24, 0x4a2466, 0x0c0a1c], sunDir:[0.35, 0.5, -0.8], sunCol:[0.55, 0.65, 0.9], sunPos:[18, 30, -24],
+          fog:[0x24183c, 35, 130], sun:[0xa8b8ff, 1.2], hemi:[0x6a70c8, 0x40284a, 0.8], fill:[0xff6ad5, 0.6], exposure:1.15, ground:'wet', led:0xff4fd8, build:buildTokyo},
+  la:    {label:'LOS ANGELES', sub:'Sunny beach and palm trees', swatch:'linear-gradient(#2a78db,#cfe8ff 65%,#d6bd8a)',
+          sky:[0x2a78db, 0xcfe8ff, 0x9fc0dc], sunDir:[0.45, 0.75, 0.35], sunCol:[1.0, 0.95, 0.85], sunPos:[18, 34, 14],
+          fog:[0xc4dcf0, 80, 260], sun:[0xfff0d8, 2.6], hemi:[0xc0dcff, 0xc8a878, 0.95], fill:[0xffe6c0, 0.4], exposure:1.0, ground:'sand', led:0x2ec4ff, build:buildLA}
+};
+const safeMap = m => (typeof m === 'string' && Object.prototype.hasOwnProperty.call(MAPS, m)) ? m : 'city';
+function setMap(id){
+  id = safeMap(id); const M = MAPS[id];
+  clearMap(); mapId = id;
+  const u = sky.material.uniforms;
+  u.top.value.copy(col(M.sky[0])); u.mid.value.copy(col(M.sky[1])); u.bot.value.copy(col(M.sky[2]));
+  u.sunDir.value.set(...M.sunDir).normalize(); u.sunCol.value.set(...M.sunCol);
+  scene.fog.color.copy(col(M.fog[0])); scene.fog.near = M.fog[1]; scene.fog.far = M.fog[2];
+  sun.color.copy(col(M.sun[0])); sun.intensity = M.sun[1]; sun.position.set(...M.sunPos);
+  hemi.color.copy(col(M.hemi[0])); hemi.groundColor.copy(col(M.hemi[1])); hemi.intensity = M.hemi[2];
+  fill.color.copy(col(M.fill[0])); fill.intensity = M.fill[1];
+  renderer.toneMappingExposure = M.exposure;
+  ground.material.map = groundTex[M.ground]; ground.material.roughness = M.ground === 'wet' ? 0.5 : 0.95; ground.material.needsUpdate = true;
+  led.material.color.copy(col(M.led));
+  mapGroup = new THREE.Group(); scene.add(mapGroup); M.build(mapGroup);
+}
+setMap('city');
 
 /* =========================================================
    BUILDING A HERO (sculpted body, face, hands and hair)
@@ -1316,13 +1536,13 @@ async function enterGame(code, role){
   Object.assign(net, {code, role, oppPeer:null, oppP:null, lastM:null, lostT:0, sendT:0, acts:[], hits:[], seenAct:0, seenHit:0, leaving:false});
   try { location.hash = 'clash-' + code; } catch(_){}
   setMsg(role === 'host' ? '' : 'Joined! Waiting for your friend to start…');
-  renderOnline();
+  buildMenu();
 }
 function leaveOnline(){
   if (net.game){ net.game.leave().catch(() => {}); }
   Object.assign(net, {game:null, code:null, role:null, oppPeer:null, oppP:null, lastM:null});
   try { if (location.hash) location.hash = ''; } catch(_){}
-  setMsg(''); renderOnline();
+  setMsg(''); buildMenu();
 }
 function resetSeen(){
   const p = net.oppP || {};
@@ -1342,6 +1562,7 @@ function netTick(rdt){
   }
   net.oppP = opp ? opp.presence.p : null;
   net.lostT = opp ? 0 : net.lostT + rdt;
+  if (net.role === 'guest' && net.oppP && net.oppP.mp !== undefined && safeMap(net.oppP.mp) !== mapId){ setMap(net.oppP.mp); if (state === 'menu') buildMenu(); }
   if (net.role === 'guest' && net.oppP) guestFollow(net.oppP);
   if (state !== 'menu' && net.lostT > 4 && !net.leaving){
     net.leaving = true; showBanner('YOUR FRIEND LEFT', '#ff3b5c', 2.5, true);
@@ -1354,6 +1575,7 @@ function netTick(rdt){
 }
 function sendPresence(){
   const p = {r:net.role, h:youId};
+  if (net.role === 'host') p.mp = mapId;
   if (state !== 'menu' && player){
     const f = player, r2 = v => Math.round(v*100)/100;
     Object.assign(p, {x:r2(f.pos.x), y:r2(f.pos.y), z:r2(f.pos.z), yw:r2(f.yaw), mv:f.moving?1:0, st:f.stun>0?1:0, bk:f.blocking?1:0,
@@ -1437,9 +1659,18 @@ function buildMenu(){
     const c = document.createElement('button'); c.className = 'chip' + (k === diffKey ? ' sel' : ''); c.textContent = d.label;
     c.onclick = () => { diffKey = k; buildMenu(); }; chips.appendChild(c);
   });
+  const mc = $('#mapCards'), guestMap = mode === 'online' && net.role === 'guest' && !!net.game;
+  mc.innerHTML = '';
+  Object.entries(MAPS).forEach(([id, M]) => {
+    const b = document.createElement('button'); b.className = 'mode' + (id === mapId ? ' sel' : ''); b.disabled = guestMap && id !== mapId;
+    const sw = document.createElement('div'); sw.className = 'sw'; sw.style.background = M.swatch; b.appendChild(sw);
+    b.appendChild(document.createTextNode(M.label)); const sm = document.createElement('small'); sm.textContent = M.sub; b.appendChild(sm);
+    b.onclick = () => { if (id !== mapId){ setMap(id); buildMenu(); } }; mc.appendChild(b);
+  });
+  $('#mapNote').hidden = !guestMap;
   const online = mode === 'online';
-  $('#youLabel').textContent = mode === 'local2' ? '1. Player 1 hero' : '1. Your hero';
-  $('#rivalLabel').textContent = mode === 'local2' ? '2. Player 2 hero' : '2. Your rival (computer)';
+  $('#youLabel').textContent = mode === 'local2' ? 'Player 1 hero' : 'Your hero';
+  $('#rivalLabel').textContent = mode === 'local2' ? 'Player 2 hero' : 'Your rival (computer)';
   $('#rivalLabel').hidden = $('#rivalCards').hidden = online;
   $('#diffWrap').hidden = mode !== 'cpu';
   $('#onlineBox').hidden = !online;
@@ -1659,6 +1890,7 @@ function loop(){
     updateHUD();
   }
   clearEdges();
+  if (mapTick) mapTick(rdt);
   updateFx(dt); updateCamera(rdt);
   renderer.render(scene, camera);
 }

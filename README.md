@@ -24,6 +24,13 @@ There are three ways to play:
 
 On a phone or tablet, use the on-screen joystick and buttons.
 
+## The maps
+- **Hero City**: a downtown arena at sunset.
+- **Tokyo**: neon signs, a red-and-white tower, lanterns and cherry blossoms at night.
+- **Los Angeles**: a sunny beach with palm trees, the ocean and mountains.
+
+In online games, the player who creates the game picks the map.
+
 ## The heroes
 - **Volt**: the lightning kid. Fast, with a Lightning Dash and a Thunder Quake slam.
 - **Titan Max**: the giant pro hero. Slow but super strong, with an Air Cannon and Titan Crash.
