@@ -5,12 +5,19 @@ A 3D superhero fighting game that runs in your web browser.
 ## How to play
 Open `index.html` in a browser (Chrome, Safari or Edge).
 
+There are three ways to play:
+- **VS Computer**: fight the computer (Easy, Normal or Hard).
+- **2 Players**: two people on one keyboard (the controls are shown in the menu).
+- **Online**: play a friend over the internet with a 4-letter code. This only works
+  in the version on claude.ai, because it uses claude.ai to connect the two players.
+
 | Key | What it does |
 |---|---|
 | W A S D or arrows | Move |
 | J or mouse click | Punch (press 3 times for a combo) |
 | K | Special move |
 | L | ULTIMATE (when the yellow bar is full) |
+| Hold I | Block |
 | Shift | Dash |
 | Space | Jump |
 | Esc | Pause |
