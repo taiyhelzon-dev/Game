@@ -194,6 +194,10 @@ a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-sp
     <div class="row-label" id="rivalLabel">Your rival (computer)</div>
     <div class="cards" id="rivalCards"></div>
     <p class="howto" id="modeNote" hidden></p>
+    <div id="bossWrap" hidden>
+      <div class="row-label">Pick a boss</div>
+      <div class="chips" id="bossChips" style="margin-top:10px"></div>
+    </div>
     <div class="row-label" id="mapLabel">Pick a map</div>
     <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
@@ -1724,20 +1728,21 @@ class Fighter {
   /* ----- special moves ----- */
   startSpecial(foe){
     const sp = this.def.sp, f = this.faceDir(), c = this.center(); this.log('s');
+    const aim = (foe.isBoss && foe.pos.y > 1.5) ? foe.center().sub(this.center()).normalize() : f;
     if (sp === 'dash'){ this.action = {type:'vdash', t:0.38, hit:false}; this.dashDir.copy(f); this.specCd = 2.4; sfx.zap(); }
     else if (sp === 'air'){ this.action = {type:'charge', t:0.35}; this.specCd = 3.0; this.glow = 1; }
     else if (sp === 'fireball'){
       this.action = {type:'throw', t:0.22}; this.specCd = 1.5;
-      spawnProjectile(this, c.addScaledVector(f, 0.8), f.clone().multiplyScalar(26), {radius:0.55, dmg:10, force:9, lift:4, color:0xff6a1a, splash:2.2, kind:'big', size:0.45}); sfx.boom();
+      spawnProjectile(this, c.addScaledVector(f, 0.8), aim.clone().multiplyScalar(26), {radius:0.55, dmg:10, force:9, lift:4, color:0xff6a1a, splash:2.2, kind:'big', size:0.45}); sfx.boom();
     } else if (sp === 'ice'){
       this.action = {type:'throw', t:0.22}; this.specCd = 1.8;
-      spawnProjectile(this, c.addScaledVector(f, 0.9), f.clone().multiplyScalar(28), {radius:0.5, dmg:9, force:4, lift:0, color:0x9fe8ff, kind:'big', size:0.4, spear:true, freeze:1.1}); sfx.zap();
+      spawnProjectile(this, c.addScaledVector(f, 0.9), aim.clone().multiplyScalar(28), {radius:0.5, dmg:9, force:4, lift:0, color:0x9fe8ff, kind:'big', size:0.4, spear:true, freeze:1.1}); sfx.zap();
     } else if (sp === 'rock'){
       this.action = {type:'throw', t:0.3}; this.specCd = 2.6;
-      spawnProjectile(this, c.addScaledVector(f, 1.1).add(new V3(0, 0.4, 0)), f.clone().multiplyScalar(17), {radius:0.8, dmg:15, force:14, lift:6, color:0x8d9098, kind:'big', size:0.7, solid:true}); sfx.thud();
+      spawnProjectile(this, c.addScaledVector(f, 1.1).add(new V3(0, 0.4, 0)), aim.clone().multiplyScalar(17), {radius:0.8, dmg:15, force:14, lift:6, color:0x8d9098, kind:'big', size:0.7, solid:true}); sfx.thud();
     } else if (sp === 'jet'){
       this.action = {type:'throw', t:0.22}; this.specCd = 1.4;
-      spawnProjectile(this, c.addScaledVector(f, 0.8), f.clone().multiplyScalar(32), {radius:0.45, dmg:8, force:13, lift:0, color:0x5ad8ff, kind:'big', size:0.35, water:true}); sfx.wind();
+      spawnProjectile(this, c.addScaledVector(f, 0.8), aim.clone().multiplyScalar(32), {radius:0.45, dmg:8, force:13, lift:0, color:0x5ad8ff, kind:'big', size:0.35, water:true}); sfx.wind();
     } else if (sp === 'vine'){ this.action = {type:'whip', t:0.3, range:7, pull:true, dmg:9, color:0x6ac83a}; this.specCd = 2.2; sfx.swing(); }
     else if (sp === 'pull'){ this.action = {type:'whip', t:0.35, range:11, pull:true, dmg:6, color:0xa58bff, grav:true}; this.specCd = 2.6; sfx.wind(); }
     else if (sp === 'beam'){ this.action = {type:'whip', t:0.25, range:11, dmg:9, color:0xff6ad5, beam:true}; this.specCd = 1.8; sfx.zap(); }
@@ -1813,7 +1818,8 @@ class Fighter {
       if (Math.random() < 0.5) sparks(this.center().addScaledVector(this.faceDir(), 0.6), 0xffffff, 1, 2, 0.3, 0.4, 0);
       if (a.t <= 0){
         const f = this.faceDir(); sfx.wind(); shake = Math.max(shake, 0.25);
-        spawnProjectile(this, this.center().addScaledVector(f, 1.2), f.clone().multiplyScalar(18), {radius:1.3, dmg:14, force:16, lift:6, color:0xeaf2ff, kind:'big', size:1.1, wind:true});
+        const aim = (foe.isBoss && foe.pos.y > 1.5) ? foe.center().sub(this.center()).normalize() : f;
+        spawnProjectile(this, this.center().addScaledVector(f, 1.2), aim.clone().multiplyScalar(18), {radius:1.3, dmg:14, force:16, lift:6, color:0xeaf2ff, kind:'big', size:1.1, wind:true});
         ring(this.center().addScaledVector(f, 1.4), 0xffffff, 2.5, 0.35, false, f);
         this.glow = 0;
       }
@@ -1821,7 +1827,7 @@ class Fighter {
       if (!a.done && a.t < 0.15){
         a.done = true;
         const tw = this.toward(foe), f = this.faceDir(), from = this.center().addScaledVector(f, 0.5);
-        const hit = tw.dist < a.range && tw.dir.dot(f) > 0.6 && Math.abs(foe.pos.y - this.pos.y) < 2.5 && !foe.ko;
+        const hit = tw.dist < a.range && tw.dir.dot(f) > 0.6 && (Math.abs(foe.pos.y - this.pos.y) < 2.5 || foe.isBoss) && !foe.ko;
         const to = hit ? foe.center() : from.clone().addScaledVector(f, a.range);
         beam(from, to, a.color, a.beam ? 0.09 : 0.05, 0.3);
         if (a.grav) for (let i=0;i<10;i++) sparks(from.clone().lerp(to, i/10), a.color, 2, 1.5, 0.4, 0.4, 0);
@@ -2331,6 +2337,285 @@ class Boss {
 }
 
 /* =========================================================
+   BOSS 2: TYRANNOX, the Storm Dragon (a flying dragon made of storm clouds and lightning)
+   ========================================================= */
+const DRAGON_DEF = {id:'tyrannox', name:'TYRANNOX', title:'The Storm Dragon', css:'#4ad8ff', accent:0x4ad8ff, size:5, power:1, hp:600};
+const dragonScaleTex = canvasTex(256, 256, (g, w) => {
+  g.fillStyle = '#16304a'; g.fillRect(0,0,w,w);
+  for (let y=0, row=0; y<w+16; y+=14, row++) for (let x=0; x<w+20; x+=20){
+    const ox = row % 2 ? 10 : 0; g.beginPath(); g.arc(x + ox, y, 11, 0, Math.PI);
+    g.fillStyle = (x + row*7) % 3 < 1 ? '#1f4466' : '#183652'; g.fill(); g.strokeStyle = '#0a1828'; g.lineWidth = 2; g.stroke();
+  }
+});
+const dragonVeinTex = canvasTex(256, 256, (g, w) => {
+  g.fillStyle = '#000'; g.fillRect(0,0,w,w); g.strokeStyle = '#5ae8ff'; g.lineCap = 'round';
+  for (let i=0;i<18;i++){ let x = Math.random()*w, y = Math.random()*w; g.lineWidth = 1 + Math.random()*2.5; g.beginPath(); g.moveTo(x, y); for (let k=0;k<6;k++){ x += rand(-26, 26); y += rand(-26, 26); g.lineTo(x, y); } g.stroke(); }
+});
+[dragonScaleTex, dragonVeinTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3); });
+const DRAGON_ALT = 7;
+
+class Dragon {
+  constructor(diff){
+    this.def = DRAGON_DEF; this.isBoss = true; this.D = diff; this.dmgMul = diff.dmg;
+    this.mat = new THREE.MeshStandardMaterial({map:dragonScaleTex, color:col(0xb0c4e0), emissive:col(0x4ad8ff), emissiveMap:dragonVeinTex, emissiveIntensity:0.9, roughness:0.55, metalness:0.2});
+    this.eyeMat = new THREE.MeshBasicMaterial({color:col(0x8af4ff)});
+    this.build(); scene.add(this.m.root);
+    this.pos = this.m.root.position; this.kb = new V3(); this.maxHp = this.def.hp;
+    this.bolts = []; this.beam = null; this.vy = 0;
+    this.reset(0, 9);
+  }
+  build(){
+    const M = this.mat, belly = new THREE.MeshStandardMaterial({color:col(0x8aa0b4), roughness:0.6}), hornM = new THREE.MeshStandardMaterial({color:col(0x15161e), roughness:0.35, metalness:0.3});
+    const mk = (geo, mat, x=0, y=0, z=0, sx=1, sy=1, sz=1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; return m; };
+    const S = new THREE.SphereGeometry(1, 22, 14);
+    const root = new THREE.Group(), body = new THREE.Group(); root.add(body); body.position.y = 4.7;
+    body.add(mk(S, M, 0, 0, 0, 2.3, 2.0, 4.4));
+    body.add(mk(S, belly, 0, -0.5, 0.2, 1.9, 1.55, 3.9));
+    for (let i=0;i<9;i++){ const sp = mk(new THREE.ConeGeometry(0.22, 0.8, 6), hornM, 0, 1.95 - Math.abs(i - 3)*0.04, 3.2 - i*0.85); sp.rotation.x = -0.6; body.add(sp); }
+    // neck and head
+    const neck = new THREE.Group(); neck.position.set(0, 0.8, 3.8); body.add(neck);
+    for (let k=0;k<5;k++){ const r = 1.2 - k*0.12; neck.add(mk(S, M, 0, k*0.9, k*0.7, r, r, r*1.2)); }
+    const head = new THREE.Group(); head.position.set(0, 4.6, 4.0); neck.add(head);
+    head.add(mk(S, M, 0, 0, 0, 1.0, 0.85, 1.4));
+    head.add(mk(S, M, 0, -0.15, 1.4, 0.75, 0.55, 1.3));
+    const jaw = new THREE.Group(); jaw.position.set(0, -0.45, 0.4); head.add(jaw);
+    jaw.add(mk(S, belly, 0, -0.1, 1.1, 0.7, 0.3, 1.5));
+    const toothM = new THREE.MeshStandardMaterial({color:col(0xf2f0e8), roughness:0.3});
+    [-1, 1].forEach(s => { for (let k=0;k<3;k++){ const t = mk(new THREE.ConeGeometry(0.07, 0.3, 5), toothM, s*0.4, 0.05, 1.5 + k*0.45); t.rotation.x = Math.PI; jaw.add(t); } });
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), new THREE.MeshBasicMaterial({color:col(0x8af4ff)})); mouth.position.set(0, -0.4, 1.9); head.add(mouth);
+    [-1, 1].forEach(s => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), this.eyeMat); eye.position.set(s*0.55, 0.25, 0.95); head.add(eye);
+      const eg = glowSprite(0x4ad8ff, 1.6, 0.8); eg.position.copy(eye.position); head.add(eg);
+      const h1 = mk(new THREE.ConeGeometry(0.24, 2.8, 8), hornM, s*0.5, 0.6, -0.7); h1.rotation.set(-1.15, 0, -s*0.35); head.add(h1);
+      const h2 = mk(new THREE.ConeGeometry(0.15, 1.5, 8), hornM, s*0.8, 0.15, -0.5); h2.rotation.set(-1.3, 0, -s*0.9); head.add(h2);
+    });
+    // four legs with claws
+    const legs = [];
+    [[1, 2.6], [1, -2.4]].forEach(([, z]) => [-1, 1].forEach(s => {
+      const leg = new THREE.Group(); leg.position.set(s*1.8, -0.6, z); body.add(leg);
+      leg.add(mk(new THREE.CylinderGeometry(0.75, 0.6, 2.2, 10), M, 0, -1.1, 0));
+      const low = new THREE.Group(); low.position.y = -2.2; leg.add(low);
+      low.add(mk(new THREE.CylinderGeometry(0.55, 0.45, 1.6, 10), M, 0, -0.8, 0));
+      low.add(mk(S, M, 0, -1.6, 0.3, 0.8, 0.35, 1.1));
+      for (let c=-1;c<=1;c++){ const cl = mk(new THREE.ConeGeometry(0.1, 0.5, 5), hornM, c*0.35, -1.65, 1.35); cl.rotation.x = Math.PI/2; low.add(cl); }
+      legs.push(leg);
+    }));
+    // tail made of linked pieces so it can sway
+    const tail = []; let parent = new THREE.Group(); parent.position.set(0, 0.2, -4.0); body.add(parent);
+    for (let k=0;k<9;k++){
+      const seg = new THREE.Group(); seg.position.z = k ? -1.1 : 0; parent.add(seg);
+      const r = 1.0*(1 - k/10); seg.add(mk(S, M, 0, 0, -0.5, r, r, r*1.5)); tail.push(seg); parent = seg;
+    }
+    const spade = mk(new THREE.ConeGeometry(0.9, 1.8, 4), hornM, 0, 0, -1.6, 1, 1, 0.25); spade.rotation.x = -Math.PI/2; parent.add(spade);
+    // big bat-like wings
+    const wingShape = new THREE.Shape();
+    wingShape.moveTo(0, 0); wingShape.lineTo(4, -0.6); wingShape.lineTo(8.5, -0.2); wingShape.lineTo(11.5, 0.6);
+    wingShape.quadraticCurveTo(9.8, 2.6, 9.2, 4.6); wingShape.quadraticCurveTo(8.0, 3.0, 6.2, 5.2);
+    wingShape.quadraticCurveTo(5.0, 3.4, 3.2, 4.8); wingShape.quadraticCurveTo(2.0, 3.0, 0, 3.6); wingShape.lineTo(0, 0);
+    const wingGeo = new THREE.ShapeGeometry(wingShape, 8);
+    const wingMat = new THREE.MeshStandardMaterial({color:col(0x2a3a5a), emissive:col(0x4ad8ff), emissiveIntensity:0.12, roughness:0.7, side:THREE.DoubleSide, transparent:true, opacity:0.93});
+    const wings = [];
+    [-1, 1].forEach(s => {
+      const pivot = new THREE.Group(); pivot.position.set(s*1.8, 1.4, 1.2); body.add(pivot);
+      const mem = new THREE.Mesh(wingGeo, wingMat); mem.rotation.x = -Math.PI/2; mem.scale.x = s; mem.castShadow = true; pivot.add(mem);
+      const bone = mk(new THREE.CylinderGeometry(0.2, 0.1, 11.5, 8), M, s*5.75, 0, 0.05); bone.rotation.z = Math.PI/2; pivot.add(bone);
+      const claw = mk(new THREE.ConeGeometry(0.15, 0.7, 6), hornM, s*4, 0.35, 0.3); pivot.add(claw);
+      wings.push(pivot);
+    });
+    this.m = {root, body, neck, head, jaw, legs, tail, wings, mouth};
+  }
+  dispose(){ this.clearAttacks(); scene.remove(this.m.root); }
+  clearAttacks(){ this.bolts = []; if (this.beam){ scene.remove(this.beam); this.beam.geometry.dispose(); this.beam.material.dispose(); this.beam = null; } }
+  reset(x, z){
+    this.clearAttacks();
+    this.home = z > 0 ? 1 : -1;
+    this.pos.set(0, 40, 30*this.home); this.yaw = this.home > 0 ? Math.PI : 0;
+    this.hp = this.maxHp; this.ko = false; this.koT = 0; this.landed = false; this.rise = 2.0; this.roared = false; this.vy = 0;
+    this.phase = 'fly'; this.pT = 0; this.cd = 2.0; this.did = false; this.tick = 0; this.ang = this.home > 0 ? Math.PI/2 : -Math.PI/2;
+    this.flash = 0; this.frozen = 0; this.enraged = false; this.target = new V3();
+    this.meter = 0; this.stun = 0; this.kd = 0; this.atk = 0; this.action = null; this.slam = false; this.blocking = false; this.inv = 0;
+    this.m.body.rotation.set(0, 0, 0); this.m.body.position.y = 4.7; this.m.root.rotation.y = this.yaw;
+  }
+  center(){ return new V3(this.pos.x, this.pos.y + 4.7, this.pos.z); }
+  faceDir(){ return new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
+  toward(foe){ const d = new V3(foe.pos.x - this.pos.x, 0, foe.pos.z - this.pos.z); const len = d.length(); return {dir: len > 0.001 ? d.divideScalar(len) : this.faceDir(), dist: len}; }
+  flying(){ return this.phase !== 'ground' && this.phase !== 'gust'; }
+  takeHit(dmg, dir, force, lift, attacker, kind, opts={}){
+    if (this.ko || this.rise > 0) return false;
+    this.hp = Math.max(0, this.hp - dmg);
+    this.flash = 0.1; if (opts.freeze) this.frozen = Math.min(1.2, opts.freeze);
+    attacker.meter = Math.min(100, attacker.meter + (kind === 'huge' ? 0 : 9));
+    hitFx(this, attacker, kind, false);
+    if (kind === 'huge' && this.pos.y > 1 && this.phase !== 'dive'){ this.clearAttacks(); this.phase = 'fall'; this.pT = 0; this.vy = 0; showBanner('KNOCKED OUT OF THE SKY!', '#4ad8ff', 1.4, true); }
+    if (!this.enraged && this.hp < this.maxHp*0.5){ this.enraged = true; showBanner('TYRANNOX IS FURIOUS!', '#4ad8ff', 1.6, true); sfx.roar(); }
+    if (this.hp <= 0){ this.ko = true; this.koT = 0; this.vy = 0; this.clearAttacks(); sfx.ko(); sfx.roar(); shake = 1.2; onKO(this); }
+    return true;
+  }
+  mouthPos(){ return this.m.mouth.getWorldPosition(new V3()); }
+  turnTo(want, rate, dt){ let dy = want - this.yaw; while (dy > Math.PI) dy -= Math.PI*2; while (dy < -Math.PI) dy += Math.PI*2; this.yaw += clamp(dy, -rate*dt, rate*dt); }
+  update(dt, inp, foe){
+    const m = this.m, t = performance.now()/1000;
+    this.flash = Math.max(0, this.flash - dt); this.frozen = Math.max(0, this.frozen - dt);
+    const W = {flap: Math.sin(t*5)*0.7, fold:0, sweep:0, pitch:0, neck:0, jaw:0, leg:0.8, roll:0};
+    if (this.rise > 0){
+      // swooping down from the sky at the start
+      this.rise -= dt; if (!this.roared){ this.roared = true; sfx.roar(); }
+      const k = 1 - Math.max(0, this.rise)/2.0, e = k*k*(3 - 2*k);
+      this.pos.set(0, mix(40, DRAGON_ALT, e), mix(30, 9, e)*this.home);
+      W.flap = Math.sin(t*7)*0.8; this.pose(W, dt, t); this.glow(t); return;
+    }
+    if (this.ko){
+      this.koT += dt;
+      if (this.pos.y > 0){ this.vy -= 30*dt; this.pos.y = Math.max(0, this.pos.y + this.vy*dt); }
+      else if (!this.landed){ this.landed = true; shake = 1.5; sfx.boom(); dust(this.pos.clone().setY(0.3), 24, 4, 2.6, 1.6, 0x6a6a78); debris(this.pos.clone().setY(0.2), 20, 12); crater(this.pos, 5); }
+      W.flap = 0; W.fold = 0.2; W.leg = 0; W.roll = Math.min(1.35, this.koT*1.2); W.neck = 0.5;
+      this.pose(W, dt, t); this.glow(t); return;
+    }
+    this.updateBolts(dt, foe);
+    const tw = this.toward(foe);
+    if (this.frozen > 0 || state !== 'fight'){ if (this.flying()) W.flap = Math.sin(t*2)*0.3; else { W.fold = 1; W.leg = 0; } this.pose(W, dt, t); this.glow(t); return; }
+    this.pT += dt;
+    const P = this.dmgMul, fast = this.enraged ? 1.4 : 1;
+    if (this.phase === 'fly'){
+      this.ang += dt*0.35*fast;
+      const want = new V3(Math.cos(this.ang)*11, DRAGON_ALT + Math.sin(t*1.3)*0.6, Math.sin(this.ang)*11);
+      this.pos.lerp(want, 1 - Math.exp(-1.6*dt));
+      this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 1.6, dt);
+      this.cd -= dt*fast;
+      if (this.cd <= 0){
+        const r = Math.random();
+        this.phase = r < 0.4 ? 'dive' : r < 0.7 ? 'breath' : 'storm'; this.pT = 0; this.did = false; this.tick = 0;
+        if (this.phase !== 'dive') sfx.roar();
+      }
+    } else if (this.phase === 'dive'){
+      // aim, climb a little, then dive at the hero
+      if (this.pT < 0.9){
+        if (!this.did){
+          this.did = true; this.target.copy(foe.pos).setY(0); this.diveFrom = this.pos.clone(); sfx.roar();
+          const warn = new THREE.Mesh(new THREE.RingGeometry(3.6, 4.2, 48), new THREE.MeshBasicMaterial({color:col(0x4ad8ff), transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+          warn.rotation.x = -Math.PI/2; warn.position.copy(this.target).setY(0.07);
+          temp(warn, 1.5, (mm, k) => { mm.material.opacity = 0.4 + 0.4*Math.sin(k*30); });
+        }
+        this.pos.y += dt*3; W.flap = Math.sin(t*9)*0.9; W.pitch = -0.35;
+        this.turnTo(Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), 4, dt);
+        this.diveFrom.copy(this.pos);
+      } else if (this.pT < 1.5){
+        const k = (this.pT - 0.9)/0.6; this.pos.lerpVectors(this.diveFrom, this.target, k*k);
+        W.flap = 0; W.sweep = 0.9; W.pitch = 0.6; W.leg = 0.2;
+        if (Math.random() < 0.8) zapAround(this.center(), 2, 2);
+      } else {
+        this.pos.copy(this.target); sfx.boom(); shake = 1.2;
+        ring(this.pos.clone().setY(0.15), 0x4ad8ff, 6, 0.5); ring(this.pos.clone().setY(0.2), 0xffffff, 4, 0.35);
+        dust(this.pos.clone().setY(0.3), 20, 3.5, 2.4, 1.4, 0x7a7a88); debris(this.pos.clone().setY(0.2), 16, 11); crater(this.pos, 4);
+        for (let i=0;i<8;i++){ const a = i/8*Math.PI*2; arc(this.pos.clone().setY(0.4), this.pos.clone().add(new V3(Math.cos(a)*rand(3, 6), 0.3, Math.sin(a)*rand(3, 6))), 0x8af4ff); }
+        if (tw.dist < 5 && foe.pos.y < 2) foe.takeHit(15*P, tw.dir, 22, 9, this, 'big');
+        this.phase = 'ground'; this.pT = 0; this.did = false;
+      }
+    } else if (this.phase === 'fall'){
+      this.vy -= 30*dt; this.pos.y = Math.max(0, this.pos.y + this.vy*dt); W.flap = Math.sin(t*14)*0.5; W.roll = 0.4;
+      if (this.pos.y <= 0){ sfx.boom(); shake = 1.2; dust(this.pos.clone().setY(0.3), 18, 3, 2.4, 1.4, 0x7a7a88); debris(this.pos.clone().setY(0.2), 12, 10); crater(this.pos, 4); this.phase = 'ground'; this.pT = -1.5; }
+    } else if (this.phase === 'ground'){
+      // landed: this is the best time to punch him!
+      W.fold = 1; W.leg = 0; W.flap = 0;
+      this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 1.2, dt);
+      if (Math.random() < 0.3) zapAround(this.center(), 1, 2.5);
+      if (this.pT > 1.0 && tw.dist < 9 && !this.did){ this.did = true; this.phase = 'gust'; this.pT = 0; sfx.roar(); }
+      else if (this.pT > 3.4){ this.phase = 'takeoff'; this.pT = 0; }
+    } else if (this.phase === 'gust'){
+      W.leg = 0; W.flap = Math.sin(t*16)*0.9; W.pitch = -0.2;
+      if (this.pT > 0.6 && this.pT < 1.3){
+        this.tick -= dt;
+        if (this.tick <= 0){
+          this.tick = 0.25; sfx.wind();
+          for (let i=0;i<6;i++) dust(this.pos.clone().addScaledVector(this.faceDir(), rand(3, 9)).add(new V3(rand(-3, 3), 0.4, rand(-3, 3))), 1, 2, 1.6, 0.6, 0xdde8ff);
+          if (tw.dist < 10 && tw.dir.dot(this.faceDir()) > 0.3) foe.takeHit(4*P, tw.dir, 24, 3, this, 'small');
+        }
+      }
+      if (this.pT > 1.5){ this.phase = 'ground'; this.pT = 2.4; }
+    } else if (this.phase === 'takeoff'){
+      W.flap = Math.sin(t*9)*0.9; this.pos.y = mix(0, DRAGON_ALT, Math.min(1, this.pT));
+      if (Math.random() < 0.5) dust(this.pos.clone().setY(0.3), 2, 3, 2, 0.8, 0xdde8ff);
+      if (this.pT >= 1){ this.phase = 'fly'; this.pT = 0; this.cd = (this.enraged ? 1.3 : 2.2)*(this.D.react/0.45); this.ang = Math.atan2(this.pos.z, this.pos.x); }
+    } else if (this.phase === 'breath'){
+      this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 2.2, dt);
+      if (this.pT < 0.8){ W.neck = -0.3; W.jaw = 0.15; this.sweepSide = new V3(tw.dir.z, 0, -tw.dir.x); if (Math.random() < 0.6) zapAround(this.mouthPos(), 1, 0.6); }
+      else if (this.pT < 2.4){
+        W.neck = 0.45; W.jaw = 0.7;
+        const k = (this.pT - 0.8)/1.6, ground = foe.pos.clone().setY(0).addScaledVector(this.sweepSide, mix(-7, 7, k));
+        const mouth = this.mouthPos(), dir = ground.clone().sub(mouth), L = dir.length(); dir.divideScalar(L);
+        if (!this.beam){
+          const g = new THREE.CylinderGeometry(0.3, 0.85, 1, 12, 1, true); g.translate(0, 0.5, 0);
+          this.beam = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:col(0x2ab8ff), transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide}));
+          scene.add(this.beam);
+        }
+        this.beam.position.copy(mouth); this.beam.quaternion.setFromUnitVectors(UP, dir); this.beam.scale.set(1, L, 1);
+        this.beam.material.opacity = 0.3 + Math.random()*0.3;
+        for (let i=0;i<2;i++){ const a = mouth.clone().addScaledVector(dir, rand(0, L*0.8)); arc(a, a.clone().addScaledVector(dir, 3), 0xbff8ff); }
+        sparks(ground.clone().setY(0.3), 0x8af4ff, 3, 6, 0.4, 0.6, 3); if (Math.random() < 0.3) dust(ground.clone().setY(0.3), 1, 1, 1.6, 0.7, 0x7a7a88);
+        this.tick -= dt;
+        if (this.tick <= 0){
+          this.tick = 0.2; if (Math.random() < 0.5) sfx.zap();
+          const c = foe.center(), rel = c.clone().sub(mouth), u = clamp(rel.dot(dir), 0, L), near = mouth.clone().addScaledVector(dir, u);
+          if (near.distanceTo(c) < 1.9) foe.takeHit(4*P, new V3(c.x - near.x, 0, c.z - near.z), 6, 0, this, 'small');
+        }
+      } else { W.jaw = 0.1; if (this.beam){ scene.remove(this.beam); this.beam.geometry.dispose(); this.beam.material.dispose(); this.beam = null; } }
+      if (this.pT > 2.8){ this.phase = 'fly'; this.pT = 0; this.cd = (this.enraged ? 1.3 : 2.2)*(this.D.react/0.45); }
+    } else if (this.phase === 'storm'){
+      W.neck = -0.5; W.jaw = 0.6; W.flap = Math.sin(t*3)*0.4;
+      if (Math.random() < 0.5) zapAround(this.center(), 2, 4);
+      if (this.pT > 0.7 && !this.did){
+        this.did = true; sfx.zap();
+        const n = this.enraged ? 9 : 6;
+        for (let i=0;i<n;i++){
+          const at = foe.pos.clone().setY(0); if (i > 0) at.add(new V3(rand(-6, 6), 0, rand(-6, 6)));
+          const life = 1.1 + i*0.1, warn = new THREE.Mesh(new THREE.RingGeometry(1.9, 2.3, 40), new THREE.MeshBasicMaterial({color:col(0x8af4ff), transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+          warn.rotation.x = -Math.PI/2; warn.position.copy(at).setY(0.07);
+          temp(warn, life, (mm, k) => { mm.material.opacity = 0.4 + 0.45*Math.sin(k*30); });
+          this.bolts.push({at, t:life});
+        }
+      }
+      if (this.pT > 1.8){ this.phase = 'fly'; this.pT = 0; this.cd = (this.enraged ? 1.3 : 2.2)*(this.D.react/0.45); }
+    }
+    const r = Math.hypot(this.pos.x, this.pos.z), maxR = ARENA_R - 2; if (r > maxR && !this.flying()){ this.pos.x *= maxR/r; this.pos.z *= maxR/r; }
+    this.pose(W, dt, t); this.glow(t);
+  }
+  updateBolts(dt, foe){
+    for (let i=this.bolts.length-1;i>=0;i--){
+      const b = this.bolts[i]; b.t -= dt;
+      if (b.t <= 0){
+        // a lightning bolt from the sky
+        let p = b.at.clone().setY(34);
+        for (let k=0;k<6;k++){ const q = k === 5 ? b.at.clone().setY(0.2) : b.at.clone().add(new V3(rand(-1.5, 1.5), 34 - (k + 1)*5.6, rand(-1.5, 1.5))); arc(p, q, 0xe8fdff); arc(p, q, 0x8af4ff); p = q; }
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 34, 8, 1, true), new THREE.MeshBasicMaterial({color:col(0xbff8ff), transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
+        pillar.position.copy(b.at).setY(17); temp(pillar, 0.25, (mm, k) => { mm.material.opacity = 1 - k; });
+        sfx.zap(); sfx.thud(); shake = Math.max(shake, 0.5);
+        sparks(b.at.clone().setY(0.3), 0x8af4ff, 24, 10, 0.5, 0.6, 3); ring(b.at.clone().setY(0.15), 0xbff8ff, 3, 0.35); crater(b.at, 1.8);
+        if (Math.hypot(foe.pos.x - b.at.x, foe.pos.z - b.at.z) < 2.3 && foe.pos.y < 2) foe.takeHit(9*this.dmgMul, new V3(foe.pos.x - b.at.x, 0, foe.pos.z - b.at.z), 10, 5, this, 'big');
+        this.bolts.splice(i, 1);
+      }
+    }
+  }
+  pose(W, dt, t){
+    const m = this.m, k = 1 - Math.exp(-10*dt);
+    this.cur = this.cur || {flap:0, fold:0, sweep:0, pitch:0, neck:0, jaw:0, leg:0, roll:0};
+    for (const key in W) this.cur[key] += (W[key] - this.cur[key])*(key === 'flap' ? 1 : k);
+    const C = this.cur;
+    m.root.rotation.y = this.yaw;
+    m.wings.forEach((w, i) => { const s = i ? 1 : -1; w.rotation.set(0, -s*C.sweep, s*(C.flap*(1 - C.fold) + C.fold*1.15)); });
+    m.body.rotation.set(C.pitch, 0, C.roll*(Math.PI/2)); m.body.position.y = 4.7 - C.roll*2.2 + Math.sin(t*1.8)*0.08;
+    m.neck.rotation.x = C.neck; m.jaw.rotation.x = C.jaw;
+    m.legs.forEach(l => { l.rotation.x = C.leg; });
+    m.tail.forEach((s, i) => { s.rotation.y = Math.sin(t*2 + i*0.5)*0.12; s.rotation.x = this.flying() ? 0.02 : -0.03; });
+  }
+  glow(t){
+    if (this.frozen > 0){ this.mat.emissive.setRGB(0.6, 0.9, 1); this.mat.emissiveIntensity = 0.6; }
+    else { this.mat.emissive.copy(col(0x4ad8ff)); this.mat.emissiveIntensity = this.flash > 0 ? 3 : this.enraged ? 1.6 + Math.sin(t*9)*0.5 : 0.8 + Math.sin(t*2)*0.2; }
+    this.eyeMat.color.copy(col(this.enraged ? 0xffffff : 0x8af4ff));
+  }
+  animate(){}
+}
+
+/* =========================================================
    COMPUTER RIVAL BRAIN
    ========================================================= */
 class AI {
@@ -2447,9 +2732,9 @@ function updateCamera(dt){
     if (sep > 0.5) camYaw = lerpAngle(camYaw, Math.atan2(dx, dz), 1 - Math.exp(-2.2*dt));
     const back = new V3(Math.sin(camYaw), 0, Math.cos(camYaw)), side = new V3(back.z, 0, -back.x);
     const dist = big ? 14 + sep*0.35 : 6 + sep*0.75;
-    const want = mid.clone().addScaledVector(back, dist).addScaledVector(side, 2.2).add(new V3(0, big ? 6.5 + sep*0.1 : 3.2 + sep*0.2, 0));
+    const want = mid.clone().addScaledVector(back, dist).addScaledVector(side, 2.2).add(new V3(0, big ? 6.5 + sep*0.1 + f.y*0.35 : 3.2 + sep*0.2, 0));
     camPos.lerp(want, 1 - Math.exp(-5*dt));
-    camLook.lerp(mid.setY(big ? 5 : 1.4 + (p.y + f.y)*0.3), 1 - Math.exp(-7*dt));
+    camLook.lerp(mid.setY(big ? 5 + f.y*0.45 : 1.4 + (p.y + f.y)*0.3), 1 - Math.exp(-7*dt));
   }
   camera.position.copy(camPos);
   if (shake > 0){ camera.position.add(new V3(rand(-1,1), rand(-1,1), rand(-1,1)).multiplyScalar(shake*0.35)); shake = Math.max(0, shake - dt*2.5); }
@@ -2625,7 +2910,14 @@ function buildMenu(){
   const note = $('#modeNote');
   note.hidden = !(mode === 'story' || mode === 'boss');
   note.textContent = mode === 'story' ? 'Fight the other 9 heroes one at a time, then the giant monster MAGMAW! The fights get harder as you go, and your progress is saved.'
+    : bossId === 'tyrannox' ? 'TYRANNOX flies! Use your special moves to hit him in the air, and punch him when he lands after a dive. Hit him with an ultimate to knock him out of the sky. Run out of the blue circles before lightning strikes!'
     : 'MAGMAW is as tall as a building! Jump over his shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.';
+  $('#bossWrap').hidden = mode !== 'boss';
+  const bc = $('#bossChips'); bc.innerHTML = '';
+  [['magmaw', 'MAGMAW · Volcano Titan'], ['tyrannox', 'TYRANNOX · Storm Dragon']].forEach(([k, l]) => {
+    const c = document.createElement('button'); c.className = 'chip' + (k === bossId ? ' sel' : ''); c.textContent = l;
+    c.onclick = () => { bossId = k; buildMenu(); }; bc.appendChild(c);
+  });
   $('#startBtn').textContent = mode === 'story' ? 'NEW STORY' : mode === 'boss' ? 'FIGHT THE MONSTER!' : 'FIGHT!';
   const saved = mode === 'story' ? loadStory() : null;
   $('#contBtn').hidden = !saved;
@@ -2784,7 +3076,7 @@ function showOver(p1Won){
   $('#menuBtn').textContent = mode === 'online' ? 'BACK TO LOBBY' : 'CHANGE HEROES';
   if (guest) sub.textContent += ' Your friend can start a rematch.';
   sub.textContent += mode === 'local2' ? ` Best combos: P1 ${combos[0].best} hits, P2 ${combos[1].best} hits.` : ` Your best combo: ${combos[0].best} hits!`;
-  if (rival && rival.isBoss) sub.textContent = p1Won ? 'You defeated MAGMAW, the Volcano Titan! The city is safe.' : 'MAGMAW was too strong this time. Watch for his attacks and try again!';
+  if (rival && rival.isBoss) sub.textContent = p1Won ? `You defeated ${rival.def.name}, ${rival.def.title}! The city is safe.` : `${rival.def.name} was too strong this time. Watch for his attacks and try again!`;
   if (rival && rival.isBoss) sub.textContent += ` Your best combo: ${combos[0].best} hits!`;
   $('#over').hidden = false; $('#touch').hidden = true;
 }
@@ -2856,16 +3148,17 @@ function storyCard(lost){
   $('#stGo').textContent = lost ? 'TRY AGAIN' : 'FIGHT!';
   $('#story').hidden = false;
 }
-function setupBossFight(diffK){
+let bossId = 'magmaw';
+function setupBossFight(diffK, which = bossId){
   if (player) player.dispose(); if (rival) rival.dispose();
-  player = new Fighter(HEROES[youId], {isPlayer:true}); rival = new Boss(DIFFS[diffK]); ai = null; previewKey = '';
+  player = new Fighter(HEROES[youId], {isPlayer:true}); rival = which === 'tyrannox' ? new Dragon(DIFFS[diffK]) : new Boss(DIFFS[diffK]); ai = null; previewKey = '';
 }
 function startStoryFight(){
   $('#story').hidden = true;
   const st = story, isBoss = st.stage >= st.order.length;
   youId = st.hero;
   setMap(isBoss ? 'city' : STORY_MAPS[st.stage % STORY_MAPS.length]);
-  if (isBoss) setupBossFight('normal');
+  if (isBoss) setupBossFight('normal', 'magmaw');
   else { setupFighters(st.hero, st.order[st.stage], false); const D = DIFFS[storyDiff(st.stage)]; ai = new AI(rival, D); rival.dmgMul = D.dmg; }
   beginHUD(); toWin = 1; wins = [0, 0]; round = 1; timers.length = 0; startRound();
 }

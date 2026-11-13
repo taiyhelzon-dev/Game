@@ -12,9 +12,12 @@ There are three ways to play:
   in the version on claude.ai, because it uses claude.ai to connect the two players.
 - **Story**: fight the other 9 heroes one at a time (they get harder), then the giant
   monster MAGMAW. Your progress is saved so you can continue later.
-- **Boss Fight**: fight MAGMAW, the Volcano Titan, a monster as tall as a building.
-  Jump over his shockwaves, get out of the red circles before the lava lands, and
-  stay away from his fire breath.
+- **Boss Fight**: pick a giant boss to fight:
+  - **MAGMAW, the Volcano Titan**: a monster as tall as a building. Jump over his
+    shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.
+  - **TYRANNOX, the Storm Dragon**: a flying dragon. Hit him in the air with special moves,
+    punch him when he lands, knock him out of the sky with an ultimate, and run out of the
+    blue circles before lightning strikes.
 
 | Key | What it does |
 |---|---|
