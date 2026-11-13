@@ -66,6 +66,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .end-title{font-family:var(--display);font-size:clamp(56px,13vw,120px);margin:10vh 0 0;-webkit-text-stroke:3px #1a1030;text-shadow:6px 6px 0 #1a1030;text-align:center}
 .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .alt{background:var(--panel-2);font-size:26px;padding:10px 24px;border-radius:12px}
+.quote{font-size:20px;font-weight:800;max-width:620px;text-align:center;line-height:1.4;margin:10px 0 16px}
+.ladder{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:760px;margin:0 0 20px}
+.ladder .step{min-width:34px;height:34px;padding:0 10px;border-radius:8px;background:var(--panel);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:18px;color:var(--muted);border:2px solid transparent;box-sizing:border-box}
+.ladder .done{background:var(--c);color:#12142b}
+.ladder .now{border-color:var(--c);color:var(--c);background:var(--panel-2)}
 
 /* online panel */
 .online{background:var(--panel);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -138,16 +143,19 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
   <h1 class="logo">HERO CLASH</h1>
   <p class="tag">Pick your hero. Pick your rival. Win the clash!</p>
   <div class="menu-wrap">
-    <div class="modes" id="modes">
+    <div class="modes" id="modes" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
       <button class="mode" data-mode="cpu">VS COMPUTER<small>Fight the computer</small></button>
       <button class="mode" data-mode="local2">2 PLAYERS<small>Same keyboard</small></button>
       <button class="mode" data-mode="online">ONLINE<small>Play a friend with a code</small></button>
+      <button class="mode" data-mode="story">STORY<small>Beat 10 fights in a row</small></button>
+      <button class="mode" data-mode="boss">BOSS FIGHT<small>Giant monster!</small></button>
     </div>
     <div class="row-label" id="youLabel">Your hero</div>
     <div class="cards" id="youCards"></div>
     <div class="row-label" id="rivalLabel">Your rival (computer)</div>
     <div class="cards" id="rivalCards"></div>
-    <div class="row-label">Pick a map</div>
+    <p class="howto" id="modeNote" hidden></p>
+    <div class="row-label" id="mapLabel">Pick a map</div>
     <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
     <div>
@@ -190,7 +198,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
       <div id="onMsg" role="status"></div>
     </div>
 
-    <button class="big" id="startBtn">FIGHT!</button>
+    <div class="btns"><button class="big" id="contBtn" hidden>CONTINUE</button><button class="big" id="startBtn">FIGHT!</button></div>
     <p class="howto" id="howto"></p>
   </div>
 </div>
@@ -232,6 +240,15 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 
 <div id="banner"></div>
 
+<div id="story" class="overlay" hidden>
+  <p class="tag" id="stStage" style="margin-top:6vh">FIGHT 1 OF 10</p>
+  <h2 class="end-title" id="stName" style="margin:0">VOLT</h2>
+  <p class="tag" id="stTitle" style="margin:4px 0 0"></p>
+  <p class="quote" id="stLine"></p>
+  <div class="ladder" id="stLadder"></div>
+  <div class="btns"><button class="big" id="stGo">FIGHT!</button><button class="alt" id="stQuit">QUIT STORY</button></div>
+</div>
+
 <div id="pause" class="overlay" hidden>
   <h2 class="end-title" style="color:var(--gold)">PAUSED</h2>
   <p class="tag" id="pauseNote" hidden>Online games don't stop. Your friend is still playing!</p>
@@ -262,70 +279,70 @@ const UP = new V3(0,1,0);
    ========================================================= */
 const HEROES = {
   volt: {
-    id:'volt', name:'VOLT', title:'The Lightning Kid', css:'#25d0c0',
+    id:'volt', line:"I've been training every single day. Let's see what you've got!", name:'VOLT', title:'The Lightning Kid', css:'#25d0c0',
     blurb:'Small, fast and full of sparks. He charges his fists with lightning.',
     suit:0x1aa596, trim:0x1b2230, accent:0xffd84a, skin:0xe0a77f, hair:0x1d2340, hairStyle:'spiky', eyes:0x3a7bd5, lips:0xc27a6a, boot:0xeceef2, headScale:1.05,
     design:'bolt', zap:true, size:1.0, bulk:1.0, speed:8.2, power:1.0, hp:100,
     special:'Lightning Dash', sp:'dash', ultimate:'Thunder Quake', ul:'quake'
   },
   titan: {
-    id:'titan', name:'TITAN MAX', title:'The Legend Pro Hero', css:'#8f73ff',
+    id:'titan', line:'Ha ha ha! Show me the power of a true hero!', name:'TITAN MAX', title:'The Legend Pro Hero', css:'#8f73ff',
     blurb:'Huge, strong and always smiling. Slow, but every hit is HUGE.',
     suit:0x5a3fe0, trim:0xe8ebf2, accent:0xffc93a, skin:0xd49a72, hair:0xeeeeee, hairStyle:'slick', eyes:0x5ab0ff, lips:0xb06a5a, boot:0xffc93a, cape:0xc81e3a,
     design:'yoke', pecs:true, grin:true, trimShoulders:true, size:1.28, bulk:1.3, speed:6.3, power:1.35, hp:125,
     special:'Air Cannon', sp:'air', ultimate:'Titan Crash', ul:'crash'
   },
   flare: {
-    id:'flare', name:'FLARE', title:'The Blast Rival', css:'#ff7a2e',
+    id:'flare', line:"Get out of my way! I'm going to be the number one hero!", name:'FLARE', title:'The Blast Rival', css:'#ff7a2e',
     blurb:'Loud, proud and fiery. Throws fireballs and blasts everything.',
     suit:0x23252f, trim:0x3b3e4c, accent:0xff6a1a, skin:0xe8b48c, hair:0xd92b23, hairStyle:'mohawk', eyes:0xd08a1a, lips:0xb8705e, boot:0x2b2b30,
     design:'flame', angry:true, mask:true, gauntlet:1.1, size:1.05, bulk:1.05, speed:7.3, power:1.12, hp:105,
     special:'Fireball', sp:'fireball', ultimate:'Supernova', ul:'nova'
   },
   glacia: {
-    id:'glacia', name:'GLACIA', title:'The Frost Guardian', css:'#7fe3ff',
+    id:'glacia', line:'Stay calm... and stay frozen.', name:'GLACIA', title:'The Frost Guardian', css:'#7fe3ff',
     blurb:'Calm and cool. Her ice freezes rivals right where they stand.',
     suit:0xe6f4ff, trim:0x2a6fb5, accent:0x7fe3ff, skin:0xf0cdb8, hair:0xe8f6ff, hairStyle:'long', eyes:0x6fd0ff, lips:0xc98a8a, boot:0x2a6fb5,
     design:'snowflake', female:true, size:0.97, bulk:0.88, speed:7.6, power:1.05, hp:100,
     special:'Ice Spear', sp:'ice', ultimate:'Blizzard', ul:'blizzard'
   },
   thorn: {
-    id:'thorn', name:'THORN', title:'The Jungle Guardian', css:'#9be04a',
+    id:'thorn', line:'The jungle taught me to be patient. And to hit hard.', name:'THORN', title:'The Jungle Guardian', css:'#9be04a',
     blurb:'Strong and patient. Her vines grab rivals from far away.',
     suit:0x2d5a34, trim:0x5a3a22, accent:0xa8d84a, skin:0x8d5a3b, hair:0x1a120c, hairStyle:'bun', eyes:0x6a4a20, lips:0x7a3e30, boot:0x5a3a22,
     design:'leaf', female:true, size:1.0, bulk:0.92, speed:7.3, power:1.05, hp:108,
     special:'Vine Whip', sp:'vine', ultimate:'Thorn Garden', ul:'garden'
   },
   orbit: {
-    id:'orbit', name:'ORBIT', title:'The Gravity Kid', css:'#a58bff',
+    id:'orbit', line:'I calculated a 97 percent chance that I win this fight.', name:'ORBIT', title:'The Gravity Kid', css:'#a58bff',
     blurb:'A space-loving genius. He pulls rivals in and calls down meteors.',
     suit:0x1b1f3a, trim:0x8a5cff, accent:0xd6c8ff, skin:0xc68a5e, hair:0xf0f0f0, hairStyle:'swept', eyes:0x9a7aff, lips:0x8a5040, boot:0x8a5cff,
     design:'rings', halo:true, size:0.98, bulk:0.95, speed:7.8, power:1.0, hp:98,
     special:'Gravity Pull', sp:'pull', ultimate:'Meteor Fall', ul:'meteor'
   },
   prism: {
-    id:'prism', name:'PRISM', title:'The Light Bender', css:'#ff6ad5',
+    id:'prism', line:'Ready for a light show? Try not to blink!', name:'PRISM', title:'The Light Bender', css:'#ff6ad5',
     blurb:'Bright and bubbly. She shoots beams of rainbow light.',
     suit:0xf6f6fa, trim:0xff6ad5, accent:0x5ae0ff, skin:0x5a3826, hair:0x24160f, hairStyle:'curly', eyes:0x7a4a2a, lips:0x6a3428, boot:0xff6ad5,
     design:'rainbow', female:true, size:0.96, bulk:0.88, speed:8.0, power:0.98, hp:96,
     special:'Light Beam', sp:'beam', ultimate:'Rainbow Burst', ul:'burst'
   },
   blink: {
-    id:'blink', name:'BLINK', title:'The Shadow Ninja', css:'#b07aff',
+    id:'blink', line:"You won't even see me coming.", name:'BLINK', title:'The Shadow Ninja', css:'#b07aff',
     blurb:'Silent and super fast. He teleports right behind rivals.',
     suit:0x22222a, trim:0x34343f, accent:0xa04aff, skin:0xe8c09a, hair:0x15151a, hairStyle:'hood', eyes:0xb07aff, lips:0xa86a5a, boot:0x15151a,
     design:'sash', size:1.0, bulk:0.92, speed:9.0, power:0.92, hp:90,
     special:'Shadow Step', sp:'teleport', ultimate:'Shadow Storm', ul:'storm'
   },
   boulder: {
-    id:'boulder', name:'BOULDER', title:'The Rock Wall', css:'#e0a060',
+    id:'boulder', line:'Go ahead. Punch the rock. See what happens.', name:'BOULDER', title:'The Rock Wall', css:'#e0a060',
     blurb:'Huge and tough as stone. Really hard to knock down.',
     suit:0x7a5a3e, trim:0x6a6e76, accent:0xff9a3a, skin:0xa86e48, hair:0x2a1c14, hairStyle:'bald', eyes:0x5a3a1a, lips:0x7a4434, boot:0x6a6e76,
     design:'cracks', pecs:true, trimShoulders:true, rockArmor:true, size:1.3, bulk:1.4, speed:5.6, power:1.4, hp:135,
     special:'Rock Throw', sp:'rock', ultimate:'Earthquake', ul:'quakeline'
   },
   riptide: {
-    id:'riptide', name:'RIPTIDE', title:'The Wave Rider', css:'#2ee6c8',
+    id:'riptide', line:"Surf's up! I hope you can swim!", name:'RIPTIDE', title:'The Wave Rider', css:'#2ee6c8',
     blurb:'A fearless surfer. She blasts water and calls huge waves.',
     suit:0x1c6fd1, trim:0xf2f2f2, accent:0x2ee6c8, skin:0xe8b48c, hair:0x4a2a14, hairStyle:'ponytail', eyes:0x2a8a7a, lips:0xc27a6a, boot:0xf2f2f2,
     design:'water', female:true, size:0.98, bulk:0.9, speed:7.9, power:1.0, hp:100,
@@ -382,7 +399,8 @@ const sfx = {
   dash(){ noise(0.18, 4000, 0.25); },
   thud(){ noise(0.2, 400, 0.5); },
   ko(){ tone(400, 50, 1.0, 'sawtooth', 0.25); noise(0.9, 600, 0.6); },
-  bell(){ tone(880, 870, 0.5, 'triangle', 0.3); }
+  bell(){ tone(880, 870, 0.5, 'triangle', 0.3); },
+  roar(){ tone(120, 50, 1.3, 'sawtooth', 0.3); tone(170, 70, 1.1, 'square', 0.1); noise(1.3, 500, 0.6); }
 };
 
 /* =========================================================
@@ -1563,7 +1581,7 @@ class Fighter {
       sparks(this.center(), 0xffe14d, 2, 3, 0.3, 0.4, 0); zapAround(this.center(), 1);
       if (!a.hit){
         const tw = this.toward(foe);
-        if (tw.dist < 1.7*this.def.size + 0.4 && Math.abs(foe.pos.y - this.pos.y) < 2){
+        if (tw.dist < 1.7*this.def.size + 0.4 + (foe.isBoss ? 2.6 : 0) && Math.abs(foe.pos.y - this.pos.y) < 2){
           a.hit = true; foe.takeHit(12*P, this.dashDir.clone(), 14, 6, this, 'big'); a.t = Math.min(a.t, 0.08);
         }
       }
@@ -1591,7 +1609,7 @@ class Fighter {
       if (!a.hit && a.t < 0.18){
         a.hit = true; smoke(this.center(), 0x6a3aa8);
         const tw = this.toward(foe);
-        if (tw.dist < 2.6) foe.takeHit(10*P, tw.dir, 12, 5, this, 'big');
+        if (tw.dist < 2.6 + (foe.isBoss ? 1.6 : 0)) foe.takeHit(10*P, tw.dir, 12, 5, this, 'big');
       }
     } else if (a.type === 'air'){
       if (Math.random() < 0.8) sparks(this.center(), 0xffe14d, 2, 2, 0.35, 0.5, 0);
@@ -1829,6 +1847,267 @@ function updateProjectiles(dt){
 function clearProjectiles(){ for (const p of projectiles){ scene.remove(p.mesh); disposeObj(p.mesh); } projectiles.length = 0; clearTemps(); }
 
 /* =========================================================
+   BOSS: MAGMAW, the Volcano Titan (a giant monster made of rock and lava)
+   ========================================================= */
+const BOSS_DEF = {id:'boss', name:'MAGMAW', title:'The Volcano Titan', css:'#ff5a1a', accent:0xff5a1a, size:5, power:1, hp:650};
+const bossRockTex = canvasTex(256, 256, (g, w) => { g.fillStyle = '#3a3430'; g.fillRect(0,0,w,w); speckle(g, w, w, 4000, 'rgba(255,255,255,0.07)', 'rgba(0,0,0,0.3)'); });
+const bossCrackTex = canvasTex(256, 256, (g, w) => {
+  g.fillStyle = '#000'; g.fillRect(0,0,w,w); g.strokeStyle = '#ff7a2a'; g.lineCap = 'round';
+  for (let i=0;i<26;i++){ let x = Math.random()*w, y = Math.random()*w; g.lineWidth = 1 + Math.random()*3; g.beginPath(); g.moveTo(x, y); for (let k=0;k<6;k++){ x += rand(-24, 24); y += rand(-24, 24); g.lineTo(x, y); } g.stroke(); }
+});
+[bossRockTex, bossCrackTex].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); });
+
+class Boss {
+  constructor(diff){
+    this.def = BOSS_DEF; this.isBoss = true; this.D = diff; this.dmgMul = diff.dmg;
+    this.mat = new THREE.MeshStandardMaterial({map:bossRockTex, color:col(0x8a7a70), emissive:col(0xff5a1a), emissiveMap:bossCrackTex, emissiveIntensity:1.2, roughness:0.95, flatShading:true});
+    this.eyeMat = new THREE.MeshBasicMaterial({color:col(0xffd23f)});
+    this.glowMat = new THREE.MeshBasicMaterial({color:col(0xff7a2a)});
+    this.build(); scene.add(this.m.root);
+    this.pos = this.m.root.position; this.kb = new V3(); this.maxHp = this.def.hp;
+    this.waves = []; this.bombs = []; this.beam = null;
+    this.cur = {aLx:0, aLz:0, aRx:0, aRz:0, eL:0, eR:0, head:0, jaw:0, bodyY:0, lean:0.3, legL:0, legR:0};
+    this.reset(0, 9);
+  }
+  build(){
+    const M = this.mat, root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+    const rp = (geo, x, y, z, sx=1, sy=1, sz=1) => { const m = new THREE.Mesh(geo, M); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; return m; };
+    const hips = new THREE.Group(); hips.position.y = 5; body.add(hips);
+    hips.add(rp(new THREE.DodecahedronGeometry(2.2, 1), 0, 0, 0, 1.3, 0.8, 1));
+    const legs = [];
+    [-1, 1].forEach(s => {
+      const leg = new THREE.Group(); leg.position.set(s*1.7, 0, 0); hips.add(leg);
+      leg.add(rp(new THREE.CylinderGeometry(1.1, 0.9, 3, 8), 0, -1.4, 0));
+      const shin = new THREE.Group(); shin.position.y = -2.9; leg.add(shin);
+      shin.add(rp(new THREE.CylinderGeometry(0.95, 1.25, 2.2, 8), 0, -0.9, 0));
+      shin.add(rp(new THREE.DodecahedronGeometry(1.25, 0), 0, -1.85, 0.5, 1.2, 0.5, 1.5));
+      legs.push(leg);
+    });
+    const torso = new THREE.Group(); hips.add(torso);
+    torso.add(rp(new THREE.DodecahedronGeometry(3, 1), 0, 3.2, 0, 1.25, 1.1, 0.9));
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 12), this.glowMat); core.position.set(0, 3.4, 2.5); torso.add(core);
+    const coreGlow = glowSprite(0xff6a1a, 5, 0.6); coreGlow.position.copy(core.position); torso.add(coreGlow);
+    [[-2.6, 5.4, 0.2, 1.4], [2.6, 5.4, 0.2, 1.4], [-1.6, 5.8, -1.2, 1.1], [1.6, 5.9, -1.1, 1.2], [0, 1.4, 2.2, 1.1], [-2.8, 2.2, 1.2, 1.0], [2.8, 2.4, 1.0, 1.0]].forEach(([x, y, z, r]) => torso.add(rp(new THREE.DodecahedronGeometry(r, 0), x, y, z)));
+    const vents = [];
+    [[-1.1, 5.4, -1.9], [1.3, 5.6, -1.6], [0.1, 4.6, -2.6]].forEach(([x, y, z]) => {
+      const v = rp(new THREE.CylinderGeometry(0.35, 0.9, 1.8, 7, 1, true), x, y, z); v.rotation.x = -0.6; torso.add(v);
+      const lava = new THREE.Mesh(new THREE.CircleGeometry(0.38, 10), this.glowMat); lava.position.set(x, y + 0.75, z - 0.5); lava.rotation.x = -Math.PI/2 - 0.6; torso.add(lava);
+      vents.push(lava);
+    });
+    const head = new THREE.Group(); head.position.set(0, 5.6, 1.7); torso.add(head);
+    head.add(rp(new THREE.DodecahedronGeometry(1.3, 1), 0, 0, 0, 1.1, 0.85, 1.1));
+    head.add(rp(new THREE.BoxGeometry(2.2, 0.4, 0.6), 0, 0.45, 1.0));
+    [-1, 1].forEach(s => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), this.eyeMat); eye.position.set(s*0.5, 0.15, 1.25); head.add(eye);
+      const eg = glowSprite(0xffb020, 1.6, 0.8); eg.position.copy(eye.position); head.add(eg);
+      [[0.9, 0.7, -0.1, 2.4, 0.5], [0.55, 0.9, -0.6, 1.8, 0.3]].forEach(([x, y, z, h, out]) => {
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.32, h, 7), new THREE.MeshStandardMaterial({color:col(0x2a2420), roughness:0.6}));
+        horn.position.set(s*x, y + h*0.35, z); horn.rotation.set(-0.5, 0, -s*out); horn.castShadow = true; head.add(horn);
+      });
+    });
+    const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8), this.glowMat); mouth.position.set(0, -0.45, 0.85); head.add(mouth);
+    const jaw = new THREE.Group(); jaw.position.set(0, -0.45, 0.2); head.add(jaw);
+    jaw.add(rp(new THREE.BoxGeometry(1.8, 0.5, 1.6), 0, -0.2, 0.6));
+    const arms = [], elbows = [];
+    [-1, 1].forEach(s => {
+      const sh = new THREE.Group(); sh.position.set(s*3.6, 4.2, 0.3); torso.add(sh);
+      sh.add(rp(new THREE.DodecahedronGeometry(1.5, 0), 0, 0, 0));
+      sh.add(rp(new THREE.CylinderGeometry(0.9, 0.75, 3.4, 8), 0, -1.9, 0));
+      const el = new THREE.Group(); el.position.y = -3.6; sh.add(el);
+      el.add(rp(new THREE.CylinderGeometry(0.8, 1.0, 3.2, 8), 0, -1.6, 0));
+      el.add(rp(new THREE.DodecahedronGeometry(1.5, 0), 0, -3.6, 0, 1, 1.1, 1));
+      arms.push(sh); elbows.push(el);
+    });
+    this.m = {root, body, hips, torso, head, jaw, legs, arms, elbows, vents};
+  }
+  dispose(){ this.clearAttacks(); scene.remove(this.m.root); }
+  clearAttacks(){
+    this.waves.forEach(w => { scene.remove(w.mesh); w.mesh.geometry.dispose(); w.mesh.material.dispose(); }); this.waves = [];
+    if (this.beam){ scene.remove(this.beam); this.beam.geometry.dispose(); this.beam.material.dispose(); this.beam = null; }
+    this.bombs = [];
+  }
+  reset(x, z){
+    this.clearAttacks();
+    this.pos.set(0, 0, z > 0 ? 9 : -9); this.yaw = z > 0 ? Math.PI : 0;
+    this.hp = this.maxHp; this.ko = false; this.koT = 0; this.rise = 2.0; this.roared = false;
+    this.cd = 2.2; this.atkName = null; this.atkT = 0; this.did = false; this.tick = 0;
+    this.flash = 0; this.frozen = 0; this.enraged = false; this.walkT = 0; this.lastStep = 0;
+    this.meter = 0; this.stun = 0; this.kd = 0; this.atk = 0; this.action = null; this.slam = false; this.blocking = false; this.inv = 0;
+    this.m.body.rotation.set(0, 0, 0); this.m.body.position.set(0, -13, 0); this.m.root.rotation.y = this.yaw;
+  }
+  center(){ return new V3(this.pos.x, this.pos.y + 3, this.pos.z); }
+  faceDir(){ return new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
+  toward(foe){ const d = new V3(foe.pos.x - this.pos.x, 0, foe.pos.z - this.pos.z); const len = d.length(); return {dir: len > 0.001 ? d.divideScalar(len) : this.faceDir(), dist: len}; }
+  takeHit(dmg, dir, force, lift, attacker, kind, opts={}){
+    if (this.ko || this.rise > 0) return false;
+    this.hp = Math.max(0, this.hp - dmg);
+    this.flash = 0.1; if (opts.freeze) this.frozen = Math.min(1.2, opts.freeze);
+    attacker.meter = Math.min(100, attacker.meter + (kind === 'huge' ? 0 : 9));
+    hitFx(this, attacker, kind, false);
+    if (!this.enraged && this.hp < this.maxHp*0.5){ this.enraged = true; showBanner('MAGMAW IS ANGRY!', '#ff3b1a', 1.6, true); sfx.roar(); }
+    if (this.hp <= 0){ this.ko = true; this.koT = 0; this.clearAttacks(); sfx.ko(); sfx.roar(); shake = 1.4; onKO(this); }
+    return true;
+  }
+  mouthPos(){ return this.m.head.localToWorld(new V3(0, -0.5, 1.5)); }
+  update(dt, inp, foe){
+    const m = this.m, t = performance.now()/1000, C = this.cur;
+    this.flash = Math.max(0, this.flash - dt); this.frozen = Math.max(0, this.frozen - dt);
+    const T = {aLx:-0.25, aLz:-0.15, aRx:-0.25, aRz:0.15, eL:-0.35, eR:-0.35, head:Math.sin(t*1.5)*0.05, jaw:0, bodyY:Math.sin(t*1.8)*0.12, lean:0.3, legL:0, legR:0};
+    // rising out of the ground at the start
+    if (this.rise > 0){
+      this.rise -= dt;
+      if (!this.roared){ this.roared = true; sfx.roar(); }
+      const k = 1 - Math.max(0, this.rise)/2.0; m.body.position.y = -13*(1 - k*k*(3 - 2*k));
+      shake = Math.max(shake, 0.5); if (Math.random() < 0.6) dust(this.pos.clone().add(new V3(rand(-4,4), 0.2, rand(-4,4))), 2, 2, 2.4, 1.4, 0x6a5a50);
+      if (Math.random() < 0.3) debris(this.pos.clone().add(new V3(rand(-4,4), 0, rand(-4,4))), 2, 8);
+      this.glow(t); return;
+    }
+    if (this.ko){
+      this.koT += dt;
+      m.body.rotation.x = Math.max(-1.45, -this.koT*0.8); m.body.position.y = -Math.min(1.6, this.koT*0.9);
+      if (this.koT < 2.4 && Math.random() < 0.4) dust(this.pos.clone().add(new V3(rand(-5,5), 0.3, rand(-6,2))), 2, 2, 2.6, 1.5, 0x6a5a50);
+      if (this.koT > 1.6 && !this.landed){ this.landed = true; shake = 1.5; sfx.boom(); debris(this.pos.clone().setY(0.2), 20, 12); }
+      this.glow(t); return;
+    }
+    this.landed = false;
+    // lava bombs and shockwaves keep going even between attacks
+    this.updateHazards(dt, foe);
+    const tw = this.toward(foe), busy = !!this.atkName;
+    if (this.frozen > 0 || state !== 'fight'){ this.pose(T, dt); this.glow(t); return; }
+    // turn to face the hero
+    const want = Math.atan2(tw.dir.x, tw.dir.z), turn = (this.enraged ? 1.8 : 1.2)*dt;
+    if (this.atkName !== 'breath'){ let dy = want - this.yaw; while (dy > Math.PI) dy -= Math.PI*2; while (dy < -Math.PI) dy += Math.PI*2; this.yaw += clamp(dy, -turn, turn); }
+    m.root.rotation.y = this.yaw;
+    // walk toward the hero
+    if (!busy && tw.dist > 8){
+      this.walkT += dt*(this.enraged ? 4.2 : 3.2);
+      this.pos.addScaledVector(this.faceDir(), (this.enraged ? 3.2 : 2.4)*dt);
+      const sw = Math.sin(this.walkT); T.legL = sw*0.35; T.legR = -sw*0.35; T.aLx += -sw*0.3; T.aRx += sw*0.3; T.bodyY = Math.abs(sw)*0.4;
+      if (Math.sign(sw) !== this.lastStep){ this.lastStep = Math.sign(sw); shake = Math.max(shake, 0.22); sfx.thud(); const side = sw > 0 ? 1 : -1; dust(this.pos.clone().add(new V3(Math.cos(this.yaw)*side*1.7, 0.2, -Math.sin(this.yaw)*side*1.7)), 5, 1.5, 2, 1, 0x7a6a58); }
+    }
+    const r = Math.hypot(this.pos.x, this.pos.z), maxR = ARENA_R - 2.5; if (r > maxR){ this.pos.x *= maxR/r; this.pos.z *= maxR/r; }
+    // pick an attack
+    this.cd -= dt;
+    if (!busy && this.cd <= 0){
+      const opts = ['stomp', 'rain'];
+      if (tw.dist < 9) opts.push('swipe', 'swipe', 'swipe');
+      if (tw.dist > 5) opts.push('breath', 'breath');
+      this.atkName = opts[(Math.random()*opts.length)|0]; this.atkT = 0; this.did = false; this.tick = 0;
+      if (this.atkName === 'breath' || this.atkName === 'rain') sfx.roar();
+    }
+    if (this.atkName) this.doAttack(dt, foe, tw, T);
+    this.pose(T, dt); this.glow(t);
+  }
+  doAttack(dt, foe, tw, T){
+    this.atkT += dt; const a = this.atkT, P = this.dmgMul;
+    if (this.atkName === 'swipe'){
+      if (a < 0.7){ T.aRx = 0.9; T.aRz = 0.9; T.eR = -0.6; T.lean = 0.15; }
+      else { T.aRx = -1.3; T.aRz = -0.5; T.eR = -0.1; T.lean = 0.5; }
+      if (a >= 0.75 && !this.did){
+        this.did = true; sfx.big(); shake = Math.max(shake, 0.5);
+        const f = this.faceDir();
+        for (let i=0;i<8;i++) dust(this.pos.clone().addScaledVector(f, 3 + i*0.7).add(new V3(rand(-2, 2), 0.4, rand(-2, 2))), 1, 1, 1.8, 0.8, 0x8a7a68);
+        if (tw.dist < 9 && tw.dir.dot(f) > 0.2 && foe.pos.y < 3) foe.takeHit(14*P, tw.dir, 20, 7, this, 'big');
+      }
+      if (a > 1.4) this.endAttack();
+    } else if (this.atkName === 'stomp'){
+      if (a < 0.9){ T.aLx = -2.5; T.aRx = -2.5; T.eL = -0.2; T.eR = -0.2; T.bodyY = 0.8; T.lean = 0.05; }
+      else { T.aLx = -0.9; T.aRx = -0.9; T.eL = -0.1; T.eR = -0.1; T.bodyY = -0.8; T.lean = 0.55; }
+      if (a >= 0.9 && !this.did){
+        this.did = true; sfx.boom(); shake = 1.1;
+        const front = this.pos.clone().addScaledVector(this.faceDir(), 4).setY(0.1);
+        crater(front, 3.5); debris(front, 14, 11); dust(front, 14, 3, 2.4, 1.4, 0x6a5a50);
+        const mesh = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 72), new THREE.MeshBasicMaterial({color:col(0xffa040), transparent:true, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending}));
+        mesh.rotation.x = -Math.PI/2; mesh.position.copy(this.pos).setY(0.15); scene.add(mesh);
+        this.waves.push({r:2, hit:false, mesh, center:this.pos.clone()});
+      }
+      if (a > 1.6) this.endAttack();
+    } else if (this.atkName === 'breath'){
+      if (a < 0.9){ T.head = -0.45; T.jaw = 0.1; T.lean = 0.15; this.breathYaw = this.yaw; if (Math.random() < 0.5) sparks(this.mouthPos(), 0xffa040, 2, 2, 0.4, 0.5, 1); }
+      else if (a < 2.5){
+        T.head = 0.25; T.jaw = 0.7; T.lean = 0.4;
+        const sweep = this.breathYaw + mix(-0.75, 0.75, (a - 0.9)/1.6); this.yaw = sweep; this.m.root.rotation.y = sweep;
+        const mouth = this.mouthPos(), dir = new V3(Math.sin(sweep), -0.32, Math.cos(sweep)).normalize();
+        if (!this.beam){
+          const g = new THREE.CylinderGeometry(1.8, 0.35, 22, 14, 1, true); g.translate(0, 11, 0);
+          this.beam = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:col(0xff7a2a), transparent:true, opacity:0.75, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide}));
+          scene.add(this.beam);
+        }
+        this.beam.position.copy(mouth); this.beam.quaternion.setFromUnitVectors(UP, dir);
+        this.beam.material.opacity = 0.6 + Math.random()*0.3;
+        for (let i=0;i<3;i++) sparks(mouth.clone().addScaledVector(dir, rand(2, 20)), Math.random() < 0.5 ? 0xffd23f : 0xff5a1a, 1, 3, 0.4, 0.8, 1);
+        const ground = mouth.clone().addScaledVector(dir, 20); if (Math.random() < 0.3) dust(ground.setY(0.3), 1, 1, 2, 0.8, 0x5a4a45);
+        this.tick -= dt;
+        if (this.tick <= 0){
+          this.tick = 0.2; if (Math.random() < 0.5) sfx.wind();
+          const to = foe.pos.clone().sub(this.pos).setY(0), d = to.length(), flat = new V3(dir.x, 0, dir.z).normalize();
+          if (d < 22 && to.normalize().dot(flat) > Math.cos(0.24) && foe.pos.y < 4) foe.takeHit(4*P, to, 6, 0, this, 'small');
+        }
+      } else {
+        T.jaw = 0.1;
+        if (this.beam){ scene.remove(this.beam); this.beam.geometry.dispose(); this.beam.material.dispose(); this.beam = null; }
+      }
+      if (a > 2.9) this.endAttack();
+    } else if (this.atkName === 'rain'){
+      T.aLz = -1.3; T.aRz = 1.3; T.aLx = -0.6; T.aRx = -0.6; T.head = -0.5; T.jaw = 0.6;
+      if (Math.random() < 0.8) this.m.vents.forEach(v => { const p = v.getWorldPosition(new V3()); sparks(p, 0xff7a2a, 1, 4, 0.6, 0.7, 7); });
+      if (a >= 0.8 && !this.did){
+        this.did = true; sfx.boom();
+        const n = this.enraged ? 8 : 6;
+        for (let i=0;i<n;i++){
+          const at = foe.pos.clone().setY(0); if (i > 0) at.add(new V3(rand(-5, 5), 0, rand(-5, 5)));
+          const life = 1.3 + i*0.08, warn = new THREE.Mesh(new THREE.RingGeometry(1.9, 2.3, 40), new THREE.MeshBasicMaterial({color:col(0xff3b1a), transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+          warn.rotation.x = -Math.PI/2; warn.position.copy(at).setY(0.07);
+          temp(warn, life, (mm, k) => { mm.material.opacity = 0.4 + 0.4*Math.sin(k*28); });
+          const from = this.m.vents[i % 3].getWorldPosition(new V3());
+          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), new THREE.MeshStandardMaterial({color:col(0x3a2a22), emissive:col(0xff5a1a), emissiveIntensity:1.2, flatShading:true}));
+          temp(rock, life, (mm, k) => { mm.position.lerpVectors(from, at, k); mm.position.y += Math.sin(k*Math.PI)*14; mm.rotation.x += 0.2; if (Math.random() < 0.5) sparks(mm.position, 0xff7a2a, 1, 1, 0.3, 0.6, 0); });
+          rock.position.copy(from);
+          this.bombs.push({at, t:life});
+        }
+      }
+      if (a > 1.8) this.endAttack();
+    }
+  }
+  endAttack(){ this.atkName = null; this.cd = (this.enraged ? 1.1 : 1.9)*(this.D.react/0.45); if (this.beam){ scene.remove(this.beam); this.beam.geometry.dispose(); this.beam.material.dispose(); this.beam = null; } }
+  updateHazards(dt, foe){
+    for (let i=this.waves.length-1;i>=0;i--){
+      const w = this.waves[i]; w.r += 13*dt;
+      w.mesh.scale.setScalar(w.r); w.mesh.material.opacity = Math.max(0, 1 - w.r/24);
+      if (Math.random() < 0.5){ const ang = rand(0, Math.PI*2); dust(w.center.clone().add(new V3(Math.cos(ang)*w.r, 0.2, Math.sin(ang)*w.r)), 1, 0.5, 1.2, 0.5, 0x8a7a68); }
+      const d = Math.hypot(foe.pos.x - w.center.x, foe.pos.z - w.center.z);
+      if (!w.hit && Math.abs(d - w.r) < 1.2 && foe.pos.y < 0.7){ w.hit = true; foe.takeHit(12*this.dmgMul, new V3(foe.pos.x - w.center.x, 0, foe.pos.z - w.center.z), 14, 6, this, 'big'); }
+      if (w.r > 24){ scene.remove(w.mesh); w.mesh.geometry.dispose(); w.mesh.material.dispose(); this.waves.splice(i, 1); }
+    }
+    for (let i=this.bombs.length-1;i>=0;i--){
+      const b = this.bombs[i]; b.t -= dt;
+      if (b.t <= 0){
+        const p = b.at.clone().setY(0.3); sfx.boom(); shake = Math.max(shake, 0.5);
+        sparks(p, 0xff7a2a, 26, 10, 0.6, 0.6, 3); dust(p, 6, 1.5, 1.8, 1, 0x4a3a35); crater(b.at, 2.2); ring(p, 0xffa040, 3, 0.4);
+        if (Math.hypot(foe.pos.x - b.at.x, foe.pos.z - b.at.z) < 2.4 && foe.pos.y < 2) foe.takeHit(10*this.dmgMul, new V3(foe.pos.x - b.at.x, 0, foe.pos.z - b.at.z), 10, 6, this, 'big');
+        this.bombs.splice(i, 1);
+      }
+    }
+  }
+  pose(T, dt){
+    const m = this.m, C = this.cur, k = 1 - Math.exp(-10*dt);
+    for (const key in T) C[key] += (T[key] - C[key])*k;
+    m.arms[0].rotation.set(C.aLx, 0, C.aLz); m.arms[1].rotation.set(C.aRx, 0, C.aRz);
+    m.elbows[0].rotation.x = C.eL; m.elbows[1].rotation.x = C.eR;
+    m.legs[0].rotation.x = C.legL; m.legs[1].rotation.x = C.legR;
+    m.torso.rotation.x = C.lean; m.head.rotation.x = C.head; m.jaw.rotation.x = C.jaw;
+    m.body.position.y = C.bodyY;
+  }
+  glow(t){
+    if (this.frozen > 0){ this.mat.emissive.setRGB(0.3, 0.7, 1); this.mat.emissiveIntensity = 0.8; }
+    else { this.mat.emissive.copy(col(0xff5a1a)); this.mat.emissiveIntensity = this.flash > 0 ? 3.5 : this.enraged ? 2.0 + Math.sin(t*8)*0.4 : 1.2 + Math.sin(t*2)*0.2; }
+    this.eyeMat.color.copy(col(this.enraged ? 0xff2a1a : 0xffd23f));
+    if (Math.random() < 0.15 && !this.ko){ const v = this.m.vents[(Math.random()*3)|0].getWorldPosition(new V3()); dust(v, 1, 0.3, 1.6, 1.8, 0x4a4040); }
+  }
+  animate(){}
+}
+
+/* =========================================================
    COMPUTER RIVAL BRAIN
    ========================================================= */
 class AI {
@@ -1939,14 +2218,15 @@ function updateCamera(dt){
     camLook.set(0, 1.35, 0);
   } else {
     const p = player.pos, f = rival.pos;
-    const mid = new V3((p.x+f.x)/2, 0, (p.z+f.z)/2);
+    const big = !!rival.isBoss;
+    const mid = big ? new V3(p.x*0.75 + f.x*0.25, 0, p.z*0.75 + f.z*0.25) : new V3((p.x+f.x)/2, 0, (p.z+f.z)/2);
     const dx = p.x - f.x, dz = p.z - f.z, sep = Math.hypot(dx, dz);
     if (sep > 0.5) camYaw = lerpAngle(camYaw, Math.atan2(dx, dz), 1 - Math.exp(-2.2*dt));
     const back = new V3(Math.sin(camYaw), 0, Math.cos(camYaw)), side = new V3(back.z, 0, -back.x);
-    const dist = 6 + sep*0.75;
-    const want = mid.clone().addScaledVector(back, dist).addScaledVector(side, 2.2).add(new V3(0, 3.2 + sep*0.2, 0));
+    const dist = big ? 14 + sep*0.35 : 6 + sep*0.75;
+    const want = mid.clone().addScaledVector(back, dist).addScaledVector(side, 2.2).add(new V3(0, big ? 6.5 + sep*0.1 : 3.2 + sep*0.2, 0));
     camPos.lerp(want, 1 - Math.exp(-5*dt));
-    camLook.lerp(mid.setY(1.4 + (p.y + f.y)*0.3), 1 - Math.exp(-7*dt));
+    camLook.lerp(mid.setY(big ? 5 : 1.4 + (p.y + f.y)*0.3), 1 - Math.exp(-7*dt));
   }
   camera.position.copy(camPos);
   if (shake > 0){ camera.position.add(new V3(rand(-1,1), rand(-1,1), rand(-1,1)).multiplyScalar(shake*0.35)); shake = Math.max(0, shake - dt*2.5); }
@@ -2114,8 +2394,17 @@ function buildMenu(){
   const online = mode === 'online';
   $('#youLabel').textContent = mode === 'local2' ? 'Player 1 hero' : 'Your hero';
   $('#rivalLabel').textContent = mode === 'local2' ? 'Player 2 hero' : 'Your rival (computer)';
-  $('#rivalLabel').hidden = $('#rivalCards').hidden = online;
-  $('#diffWrap').hidden = mode !== 'cpu';
+  $('#rivalLabel').hidden = $('#rivalCards').hidden = online || mode === 'story' || mode === 'boss';
+  $('#mapLabel').hidden = $('#mapCards').hidden = mode === 'story';
+  const note = $('#modeNote');
+  note.hidden = !(mode === 'story' || mode === 'boss');
+  note.textContent = mode === 'story' ? 'Fight the other 9 heroes one at a time, then the giant monster MAGMAW! The fights get harder as you go, and your progress is saved.'
+    : 'MAGMAW is as tall as a building! Jump over his shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.';
+  $('#startBtn').textContent = mode === 'story' ? 'NEW STORY' : mode === 'boss' ? 'FIGHT THE MONSTER!' : 'FIGHT!';
+  const saved = mode === 'story' ? loadStory() : null;
+  $('#contBtn').hidden = !saved;
+  if (saved) $('#contBtn').textContent = `CONTINUE: FIGHT ${saved.stage + 1} OF 10 (${HEROES[saved.hero].name})`;
+  $('#diffWrap').hidden = !(mode === 'cpu' || mode === 'boss');
   $('#onlineBox').hidden = !online;
   $('#startBtn').hidden = online;
   $('#howto').innerHTML = mode === 'local2' ? HOWTO.local2 + (isTouch ? '<br>2 players needs a keyboard.' : '') : HOWTO.solo;
@@ -2198,6 +2487,8 @@ function beginHUD(){
 }
 function startMatch(){
   initAudio();
+  if (mode === 'boss'){ setupBossFight(diffKey); beginHUD(); toWin = 1; wins = [0, 0]; round = 1; timers.length = 0; startRound(); return; }
+  toWin = 2;
   const online = mode === 'online';
   if (online && (!net.game || net.role !== 'host' || !net.oppP)) return;
   setupFighters(youId, online ? safeHero(net.oppP.h) : rivalId, online);
@@ -2215,9 +2506,10 @@ function resetRoundLocal(){
 }
 function startRound(){
   net.epoch++; resetRoundLocal();
-  timeLeft = 60; state = 'intro'; updatePips();
-  netBanner('ROUND ' + round, '#ffffff', 1.1);
-  later(1.2, () => { if (state !== 'intro') return; netBanner('FIGHT!', '#ffd23f', 0.8); sfx.bell(); state = 'fight'; });
+  const boss = !!rival.isBoss;
+  timeLeft = boss ? 180 : 60; state = 'intro'; updatePips();
+  netBanner(boss ? 'MONSTER ATTACK!' : toWin === 1 ? 'GET READY!' : 'ROUND ' + round, boss ? '#ff5a1a' : '#ffffff', boss ? 2.0 : 1.1);
+  later(boss ? 2.3 : 1.2, () => { if (state !== 'intro') return; netBanner('FIGHT!', '#ffd23f', 0.8); sfx.bell(); state = 'fight'; });
 }
 function onKO(loser){
   if (state !== 'fight') return;
@@ -2228,10 +2520,10 @@ function onKO(loser){
 function endRound(winner, text){
   state = 'ko'; wins[winner]++; updatePips();
   later(0.25, () => netBanner(text, '#ff3b5c', 1.8));
-  later(2.4, () => { const w = winner === 0 ? player : rival; netBanner(w.def.name + ' WINS THE ROUND', w.def.css, 1.4, true); });
+  later(2.4, () => { const w = winner === 0 ? player : rival; netBanner(w.def.name + (toWin === 1 ? ' WINS!' : ' WINS THE ROUND'), w.def.css, 1.4, true); });
   later(4.0, () => {
     if (state !== 'ko') return;
-    if (wins[winner] >= 2){ state = 'over'; showOver(winner === 0); }
+    if (wins[winner] >= toWin){ state = 'over'; if (mode === 'story' && story) storyResult(winner === 0); else showOver(winner === 0); }
     else { round++; startRound(); }
   });
 }
@@ -2252,10 +2544,11 @@ function showOver(p1Won){
   $('#againBtn').hidden = guest;
   $('#menuBtn').textContent = mode === 'online' ? 'BACK TO LOBBY' : 'CHANGE HEROES';
   if (guest) sub.textContent += ' Your friend can start a rematch.';
+  if (rival && rival.isBoss) sub.textContent = p1Won ? 'You defeated MAGMAW, the Volcano Titan! The city is safe.' : 'MAGMAW was too strong this time. Watch for his attacks and try again!';
   $('#over').hidden = false; $('#touch').hidden = true;
 }
 function updatePips(){
-  ['#p1pips','#p2pips'].forEach((s, i) => $(s).querySelectorAll('span').forEach((sp, j) => sp.classList.toggle('on', j < wins[i])));
+  ['#p1pips','#p2pips'].forEach((s, i) => $(s).querySelectorAll('span').forEach((sp, j) => { sp.classList.toggle('on', j < wins[i]); sp.hidden = j >= toWin; }));
 }
 function togglePause(){
   if (state === 'menu' || state === 'over') return;
@@ -2266,7 +2559,7 @@ function toMenu(){
   $('#pause').hidden = true; $('#over').hidden = true; $('#hud').hidden = true; $('#touch').hidden = true; $('#menu').hidden = false;
   previewKey = ''; buildMenu(); refreshPreview();
 }
-$('#startBtn').onclick = startMatch;
+$('#startBtn').onclick = () => mode === 'story' ? newStory() : startMatch();
 $('#againBtn').onclick = () => startMatch();
 $('#menuBtn').onclick = toMenu;
 $('#resumeBtn').onclick = togglePause;
@@ -2286,6 +2579,72 @@ function updateHUD(){
   $('#tUlt').classList.toggle('ready', player.meter >= 100);
   const c = $('#clock'); c.textContent = Math.ceil(Math.max(0, timeLeft)); c.classList.toggle('low', timeLeft < 10);
 }
+
+/* =========================================================
+   STORY MODE: beat all the other heroes, then the giant monster
+   ========================================================= */
+const STORY_ORDER = ['prism', 'blink', 'orbit', 'volt', 'riptide', 'thorn', 'glacia', 'flare', 'titan', 'boulder'];
+const STORY_MAPS = ['city', 'tokyo', 'la', 'snow'];
+let story = null, toWin = 2;
+function loadStory(){
+  try { const s = JSON.parse(localStorage.getItem('heroclash-story') || 'null'); if (s && HEROES[s.hero] && Number.isInteger(s.stage) && s.stage >= 0 && s.stage <= 9) return s; } catch(e){}
+  return null;
+}
+function saveStory(){ try { if (story) localStorage.setItem('heroclash-story', JSON.stringify({hero:story.hero, stage:story.stage})); else localStorage.removeItem('heroclash-story'); } catch(e){} }
+const storyOrder = hero => STORY_ORDER.filter(h => h !== hero);
+const storyDiff = stage => stage < 3 ? 'easy' : stage < 6 ? 'normal' : 'hard';
+function newStory(){ story = {hero:youId, stage:0, order:storyOrder(youId)}; saveStory(); storyCard(false); }
+function continueStory(){ const s = loadStory(); if (!s) return newStory(); youId = s.hero; story = {hero:s.hero, stage:s.stage, order:storyOrder(s.hero)}; storyCard(false); }
+function storyCard(lost){
+  initAudio();
+  const st = story, isBoss = st.stage >= st.order.length, foe = isBoss ? BOSS_DEF : HEROES[st.order[st.stage]];
+  ['#menu', '#hud', '#touch', '#over', '#pause'].forEach(s => { $(s).hidden = true; });
+  $('#stStage').textContent = lost ? 'YOU WERE KNOCKED OUT' : isBoss ? 'FINAL BATTLE · FIGHT 10 OF 10' : `FIGHT ${st.stage + 1} OF 10`;
+  $('#stName').textContent = foe.name; $('#stName').style.color = foe.css;
+  $('#stTitle').textContent = foe.title;
+  $('#stLine').textContent = lost ? "Don't give up! Every hero gets knocked down sometimes. Get back up and try again!"
+    : isBoss ? 'The ground is shaking... A giant monster is climbing out of a volcano under the city! Only you can stop it!'
+    : '"' + foe.line + '"';
+  const lad = $('#stLadder'); lad.innerHTML = '';
+  [...st.order, 'boss'].forEach((id, i) => {
+    const h = id === 'boss' ? BOSS_DEF : HEROES[id], d = document.createElement('div');
+    d.className = 'step' + (i < st.stage ? ' done' : i === st.stage ? ' now' : ''); d.style.setProperty('--c', h.css);
+    d.textContent = i < st.stage ? h.name + ' ✓' : i === st.stage ? h.name : (id === 'boss' ? '👹' : String(i + 1));
+    lad.appendChild(d);
+  });
+  $('#stGo').textContent = lost ? 'TRY AGAIN' : 'FIGHT!';
+  $('#story').hidden = false;
+}
+function setupBossFight(diffK){
+  if (player) player.dispose(); if (rival) rival.dispose();
+  player = new Fighter(HEROES[youId], {isPlayer:true}); rival = new Boss(DIFFS[diffK]); ai = null; previewKey = '';
+}
+function startStoryFight(){
+  $('#story').hidden = true;
+  const st = story, isBoss = st.stage >= st.order.length;
+  youId = st.hero;
+  setMap(isBoss ? 'city' : STORY_MAPS[st.stage % 4]);
+  if (isBoss) setupBossFight('normal');
+  else { setupFighters(st.hero, st.order[st.stage], false); const D = DIFFS[storyDiff(st.stage)]; ai = new AI(rival, D); rival.dmgMul = D.dmg; }
+  beginHUD(); toWin = 1; wins = [0, 0]; round = 1; timers.length = 0; startRound();
+}
+function storyResult(won){
+  if (!won) return storyCard(true);
+  story.stage++;
+  if (story.stage > story.order.length){ story = null; saveStory(); return showStoryWin(); }
+  saveStory(); storyCard(false);
+}
+function showStoryWin(){
+  $('#overTitle').textContent = 'THE CITY IS SAVED!'; $('#overTitle').style.color = '#ffd23f';
+  $('#overSub').textContent = `${HEROES[youId].name} beat all 9 heroes AND the giant monster MAGMAW. You are the greatest hero ever!`;
+  $('#againBtn').hidden = true; $('#menuBtn').textContent = 'BACK TO MENU';
+  $('#over').hidden = false; $('#touch').hidden = true; $('#hud').hidden = true;
+  const cols = [0xff4a4a, 0xffe23f, 0x4ae06a, 0x3ab0ff, 0xa04aff, 0xff9a2e];
+  for (let i=0;i<6;i++) later(i*0.35, () => sparks(player.center().add(new V3(rand(-2, 2), 2, rand(-2, 2))), cols[i], 40, 12, 1.2, 0.6, 8));
+}
+$('#stGo').onclick = startStoryFight;
+$('#stQuit').onclick = () => { $('#story').hidden = true; toMenu(); };
+$('#contBtn').onclick = continueStory;
 
 /* =========================================================
    MAIN LOOP
@@ -2312,15 +2671,15 @@ function loop(){
     player.update(dt, pin, rival);
     if (rival.ghost) rival.netUpdate(dt, net.oppP, player);
     else {
-      const rin = !fighting ? NO_INPUT : mode === 'local2' ? readInput('p2') : ai.think(dt, player);
+      const rin = !fighting ? NO_INPUT : mode === 'local2' ? readInput('p2') : (ai ? ai.think(dt, player) : NO_INPUT);
       rival.update(dt, rin, player);
     }
     // don't let fighters walk through each other
     const dx = rival.pos.x - player.pos.x, dz = rival.pos.z - player.pos.z, d = Math.hypot(dx, dz), minD = 0.5*(player.def.size + rival.def.size);
     if (d < minD && d > 0.0001 && Math.abs(rival.pos.y - player.pos.y) < 1.5 && !player.ko && !rival.ko){
-      const push = minD - d, share = rival.ghost ? 1 : 0.5;
+      const push = minD - d, share = (rival.ghost || rival.isBoss) ? 1 : 0.5;
       player.pos.x -= dx/d*push*share; player.pos.z -= dz/d*push*share;
-      if (!rival.ghost){ rival.pos.x += dx/d*push*0.5; rival.pos.z += dz/d*push*0.5; }
+      if (!rival.ghost && !rival.isBoss){ rival.pos.x += dx/d*push*0.5; rival.pos.z += dz/d*push*0.5; }
     }
     updateProjectiles(dt);
     if (fighting && !(mode === 'online' && net.role === 'guest')){

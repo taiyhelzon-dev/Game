@@ -10,6 +10,11 @@ There are three ways to play:
 - **2 Players**: two people on one keyboard (the controls are shown in the menu).
 - **Online**: play a friend over the internet with a 4-letter code. This only works
   in the version on claude.ai, because it uses claude.ai to connect the two players.
+- **Story**: fight the other 9 heroes one at a time (they get harder), then the giant
+  monster MAGMAW. Your progress is saved so you can continue later.
+- **Boss Fight**: fight MAGMAW, the Volcano Titan, a monster as tall as a building.
+  Jump over his shockwaves, get out of the red circles before the lava lands, and
+  stay away from his fire breath.
 
 | Key | What it does |
 |---|---|
