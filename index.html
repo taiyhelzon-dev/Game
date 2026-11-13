@@ -93,6 +93,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
 .join-row input{font-family:var(--display);font-size:30px;letter-spacing:.2em;text-transform:uppercase;width:5.2em;padding:6px 12px;border-radius:10px;
   border:3px solid var(--panel-2);background:#0c0e22;color:var(--gold)}
 .or{color:var(--muted);font-weight:800}
+.invite{display:flex;flex-direction:column;gap:8px;background:#0c0e22;border-radius:12px;padding:12px}
+.invite textarea{width:100%;box-sizing:border-box;resize:none;border-radius:8px;border:2px solid var(--panel-2);background:var(--panel);color:var(--ink);font-family:var(--body);font-size:14px;padding:8px;line-height:1.4;-webkit-user-select:text;user-select:text}
+a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-spacing:.06em;display:inline-block}
+#copyMsg{color:var(--hp);font-weight:800;min-height:1em}
 .code{font-family:var(--display);font-size:64px;letter-spacing:.18em;color:var(--gold);line-height:1;-webkit-text-stroke:2px #1a1030}
 .players{display:grid;gap:6px}
 .players div{display:flex;justify-content:space-between;gap:10px;background:#0c0e22;border-radius:10px;padding:8px 12px;font-weight:800}
@@ -221,6 +225,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-o
         <p>Game code</p>
         <div class="code" id="codeShow">----</div>
         <p class="note" id="codeHelp">Tell your friend this code. They open this page, choose ONLINE, type the code and press JOIN.</p>
+        <div class="invite" id="inviteBox" hidden>
+          <p><b>Invite a friend with Messages</b></p>
+          <textarea id="inviteText" readonly rows="3" aria-label="Invite message"></textarea>
+          <div class="btns" style="justify-content:flex-start">
+            <button class="alt" id="copyInvite">COPY INVITE</button>
+            <a class="alt" id="smsInvite" href="#">OPEN MESSAGES</a>
+          </div>
+          <p class="note" id="copyMsg" role="status"></p>
+          <p class="note">Paste the invite into Messages and send it. Your friend must be signed in to claude.ai, and you have to share this page with them first, using the Share button at the top.</p>
+        </div>
         <div class="players">
           <div><span>You</span><span class="ok" id="meHero">VOLT</span></div>
           <div><span>Friend</span><span class="wait" id="friendHero">waiting to join…</span></div>
@@ -2319,6 +2333,9 @@ const net = { game:null, code:null, role:null, myPeer:null, oppPeer:null, oppP:n
   roomChecked = true; renderOnline();
 })();
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+// The link to this game on claude.ai. Adding #clash-CODE makes the game open straight to that online game.
+const GAME_URL = 'https://claude.ai/artifact/XyZHRiDUpr2U5EJ6RqHa2e';
+const inviteText = code => `Join my Hero Clash game! Open this link, then press JOIN. My game code is ${code.toUpperCase()}. ${GAME_URL}#clash-${code}`;
 function genCode(){ let s = ''; for (let i=0;i<4;i++) s += CODE_CHARS[(Math.random()*CODE_CHARS.length)|0]; return s; }
 function setMsg(t){ $('#onMsg').textContent = t || ''; }
 async function enterGame(code, role){
@@ -2493,6 +2510,11 @@ function renderOnline(){
   $('#onIn').hidden = !net.game;
   if (!net.game) return;
   $('#codeShow').textContent = (net.code || '').toUpperCase();
+  $('#inviteBox').hidden = net.role !== 'host';
+  if (net.role === 'host'){
+    const txt = inviteText(net.code || '');
+    if ($('#inviteText').value !== txt){ $('#inviteText').value = txt; $('#smsInvite').href = 'sms:?&body=' + encodeURIComponent(txt); $('#copyMsg').textContent = ''; }
+  }
   $('#codeHelp').textContent = net.role === 'host'
     ? 'Tell your friend this code. They open this page, choose ONLINE, type the code and press JOIN.'
     : 'You joined your friend\'s game. They press START FIGHT when you\'re both ready.';
@@ -2532,6 +2554,12 @@ $('#joinBtn').onclick = () => {
 };
 $('#joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('#joinBtn').click(); });
 $('#leaveBtn').onclick = leaveOnline;
+$('#copyInvite').onclick = () => {
+  const ta = $('#inviteText'), done = () => { $('#copyMsg').textContent = 'Copied! Now open Messages, paste it and send it to your friend.'; };
+  const fallback = () => { ta.focus(); ta.select(); try { if (document.execCommand('copy')) return done(); } catch(_){} $('#copyMsg').textContent = 'Press and hold the invite text, choose Copy, then paste it in Messages.'; };
+  try { navigator.clipboard.writeText(ta.value).then(done, fallback); } catch(_){ fallback(); }
+};
+$('#inviteText').addEventListener('focus', e => e.target.select());
 $('#onStartBtn').onclick = () => startMatch();
 
 /* =========================================================
@@ -2844,7 +2872,7 @@ function loop(){
 
 // open straight to the online tab if the link has a game code in it
 const hm = /^#clash-([a-z0-9]{4})$/.exec(location.hash || '');
-if (hm){ mode = 'online'; $('#joinCode').value = hm[1].toUpperCase(); }
+if (hm){ mode = 'online'; $('#joinCode').value = hm[1].toUpperCase(); setTimeout(() => { if (!net.game) setMsg('Your friend invited you! Pick your hero, then press JOIN.'); }, 0); }
 initShowcase(); showcaseHero(youId);
 buildMenu(); refreshPreview(); loop();
 })();
