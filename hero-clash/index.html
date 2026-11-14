@@ -3239,12 +3239,12 @@ class SealBoss {
       else { s.root.position.y -= dt*6; }
     });
     if (a >= 3.9 && !this.bitten){
-      // the bite: anyone outside the gold circle loses 75% of their health
+      // the bite: anyone outside the gold circle loses 50% of their health
       this.bitten = true; shake = 1.2;
       for (let i=0;i<6;i++) later(i*0.05, () => { noise(0.12, 2500, 0.6); tone(300, 80, 0.1, 'square', 0.15); });
       D.holes.forEach(s => sparks(s.home.clone().setY(0.4), 0xdff6ff, 10, 8, 0.6, 0.5, 5));
       const inSafe = Math.hypot(foe.pos.x - D.safe.x, foe.pos.z - D.safe.z) < 3.0;
-      if (!inSafe && !foe.ko){ foe.inv = 0; foe.kd = 0; foe.blocking = false; showBanner('CHOMP! -75%', '#7ad0ff', 1.6); popText('CHOMP!', foe.center(), '#7ad0ff'); foe.takeHit(foe.maxHp*0.75, foe.pos.clone().sub(D.safe), 10, 6, this, 'huge'); }
+      if (!inSafe && !foe.ko){ foe.inv = 0; foe.kd = 0; foe.blocking = false; showBanner('CHOMP! -50%', '#7ad0ff', 1.6); popText('CHOMP!', foe.center(), '#7ad0ff'); foe.takeHit(foe.maxHp*0.5, foe.pos.clone().sub(D.safe), 10, 6, this, 'huge'); }
       else if (!foe.ko){ showBanner('YOU SURVIVED!', '#ffd23f', 1.4, true); popText('SAFE!', foe.center(), '#ffd23f'); }
     }
     if (a > 5.0){ D.sheet.material.opacity = Math.max(0, 0.85 - (a - 5.0)*2); }
@@ -3699,7 +3699,7 @@ function buildMenu(){
   const note = $('#modeNote');
   note.hidden = !(mode === 'story' || mode === 'boss');
   note.textContent = mode === 'story' ? 'Fight the other 9 heroes one at a time, then the giant monster MAGMAW! The fights get harder as you go, and your progress is saved.'
-    : bossId === 'kingfloe' ? 'KING FLOE belly-flops, spits ice spears and slides across the arena. Punch him while he is out of breath! Watch out for his ICE DOMAIN (he only uses it once per fight): when the ice spreads, run into the GOLD CIRCLE before the seals bite. Outside it, the seals bite off 75% of your health! Beat him to win a secret reward.'
+    : bossId === 'kingfloe' ? 'KING FLOE belly-flops, spits ice spears and slides across the arena. Punch him while he is out of breath! Watch out for his ICE DOMAIN (he only uses it once per fight): when the ice spreads, run into the GOLD CIRCLE before the seals bite. Outside it, the seals bite off 50% of your health! Beat him to win a secret reward.'
     : bossId === 'tyrannox' ? 'TYRANNOX flies! Use your special moves to hit him in the air, and punch him when he lands after a dive. Hit him with an ultimate to knock him out of the sky. Run out of the blue circles before lightning strikes!'
     : 'MAGMAW is as tall as a building! Jump over his shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.';
   $('#bossWrap').hidden = mode !== 'boss';
