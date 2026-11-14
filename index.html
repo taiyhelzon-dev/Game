@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>My Games</title>
+<title>100and50bucks Games</title>
 <meta name="description" content="Games I made. Pick one and press PLAY!">
-<meta property="og:title" content="My Games">
+<meta property="og:title" content="100and50bucks Games">
 <meta property="og:description" content="Games I made. Pick one and press PLAY!">
 <meta property="og:image" content="hero-clash/cover.jpg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
@@ -64,7 +64,7 @@ footer.wrap{border-top:1px solid var(--line);padding:22px 16px 40px;text-align:c
 <body>
 <header class="wrap">
   <p class="hi">Welcome to the arcade of</p>
-  <h1 id="myName">Your Name</h1>
+  <h1 id="myName">100and50bucks</h1>
   <p class="tag">Games I made. Pick one and press <b>PLAY</b>!</p>
 </header>
 
@@ -73,7 +73,7 @@ footer.wrap{border-top:1px solid var(--line);padding:22px 16px 40px;text-align:c
   <div class="games" id="games"></div>
 </main>
 
-<footer class="wrap">Made by <span id="footName">Your Name</span> · <span id="year"></span></footer>
+<footer class="wrap">Made by <span id="footName">100and50bucks</span> · <span id="year"></span></footer>
 
 <script>
 /* =====================================================
@@ -83,7 +83,7 @@ footer.wrap{border-top:1px solid var(--line);padding:22px 16px 40px;text-align:c
               in its own folder (like "hero-clash/") and add
               an entry to this list. The newest game goes first.
    ===================================================== */
-const MY_NAME = 'Your Name';
+const MY_NAME = '100and50bucks';
 
 const GAMES = [
   {
@@ -100,7 +100,7 @@ const GAMES = [
 document.getElementById('myName').textContent = MY_NAME;
 document.getElementById('footName').textContent = MY_NAME;
 document.getElementById('year').textContent = new Date().getFullYear();
-document.title = MY_NAME + "'s Games";
+document.title = MY_NAME + ' Games';
 
 const grid = document.getElementById('games');
 for (const g of GAMES) {
