@@ -2904,56 +2904,183 @@ class Dragon {
    BOSS 3: KING FLOE, the Seal Tyrant (a giant seal king made of blubber and ice)
    ========================================================= */
 const SEAL_DEF = {id:'kingfloe', name:'KING FLOE', title:'The Seal Tyrant', css:'#7ad0ff', accent:0x7ad0ff, size:5, power:1, hp:700};
-const sealSkinTex = canvasTex(256, 256, (g, w) => {
-  g.fillStyle = '#6a7a8c'; g.fillRect(0,0,w,w);
-  for (let i=0;i<240;i++){ g.fillStyle = `rgba(28,36,52,${rand(0.25, 0.6)})`; g.beginPath(); g.ellipse(Math.random()*w, Math.random()*w, rand(2, 9), rand(2, 7), rand(0, 3), 0, Math.PI*2); g.fill(); }
-  speckle(g, w, w, 2500, 'rgba(255,255,255,0.08)', 'rgba(0,0,0,0.1)');
+/* ----- how a seal looks: spotted wet skin, a real seal face, flippers with claws ----- */
+// Spots like a harbor seal (drawn on white so each seal can tint it)
+function wrapDraw(w, x, y, fn){ for (const dx of [-w, 0, w]) for (const dy of [-w, 0, w]) fn(x + dx, y + dy); }
+const sealSkinTex = canvasTex(512, 512, (g, w) => {
+  g.fillStyle = '#ffffff'; g.fillRect(0,0,w,w);
+  for (let i=0;i<70;i++){ const x = Math.random()*w, y = Math.random()*w, r = rand(25, 80);
+    wrapDraw(w, x, y, (px, py) => { const gr = g.createRadialGradient(px, py, 0, px, py, r); gr.addColorStop(0, 'rgba(110,122,145,0.2)'); gr.addColorStop(1, 'rgba(110,122,145,0)'); g.fillStyle = gr; g.fillRect(px - r, py - r, r*2, r*2); }); }
+  for (let i=0;i<190;i++){ const x = Math.random()*w, y = Math.random()*w, rx = rand(3, 12), ry = rx*rand(0.55, 1), a = rand(0, 3), o = rand(0.45, 0.8);
+    wrapDraw(w, x, y, (px, py) => {
+      g.fillStyle = `rgba(20,26,38,${o})`; g.beginPath(); g.ellipse(px, py, rx, ry, a, 0, Math.PI*2); g.fill();
+      if (rx > 8){ g.fillStyle = 'rgba(205,212,222,0.6)'; g.beginPath(); g.ellipse(px, py, rx*0.45, ry*0.45, a, 0, Math.PI*2); g.fill(); }
+    }); }
+  for (let i=0;i<600;i++){ const x = Math.random()*w, y = Math.random()*w, r = rand(0.8, 2.4); g.fillStyle = `rgba(20,26,38,${rand(0.3, 0.6)})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI*2); g.fill(); }
+  speckle(g, w, w, 4000, 'rgba(255,255,255,0.12)', 'rgba(0,0,0,0.07)');
 });
-sealSkinTex.wrapS = sealSkinTex.wrapT = THREE.RepeatWrapping; sealSkinTex.repeat.set(2, 2);
-// Builds a seal. boss=true adds the crown, ice spikes, teeth and red eyes.
-function buildSeal(scale, boss){
-  const skin = new THREE.MeshStandardMaterial({map:sealSkinTex, color:col(boss ? 0x8a9aac : 0xb4c0cc), roughness:0.3, metalness:0.05});
-  const belly = new THREE.MeshStandardMaterial({color:col(boss ? 0xc4cad2 : 0xe2e6ea), roughness:0.4});
-  const gloss = new THREE.MeshStandardMaterial({color:col(0x0c1014), roughness:0.08, metalness:0.2});
-  const white = new THREE.MeshStandardMaterial({color:col(0xf2efe6), roughness:0.3});
-  const S = new THREE.SphereGeometry(1, 28, 20);
-  const mk = (geo, mat, x=0, y=0, z=0, sx=1, sy=1, sz=1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; return m; };
-  const root = new THREE.Group(), body = new THREE.Group(); root.add(body); root.scale.setScalar(scale);
-  body.add(mk(S, skin, 0, 2.4, 0, 2.6, 2.4, 5.2));
-  body.add(mk(S, belly, 0, 1.9, 0.3, 2.3, 2.0, 4.8));
-  const front = new THREE.Group(); front.position.set(0, 2.6, 3.4); body.add(front);
-  front.add(mk(S, skin, 0, 1.2, 0.4, 2.2, 2.4, 2.4));
-  const head = new THREE.Group(); head.position.set(0, 3.4, 1.4); front.add(head);
-  head.add(mk(S, skin, 0, 0, 0, 1.7, 1.5, 1.8));
-  head.add(mk(S, belly, 0, -0.35, 1.5, 1.0, 0.8, 1.0));
-  head.add(mk(S, gloss, 0, -0.05, 2.45, 0.36, 0.22, 0.22));
+sealSkinTex.wrapS = sealSkinTex.wrapT = THREE.RepeatWrapping; sealSkinTex.repeat.set(3, 2);
+// Tiny bumps and wrinkles so the skin catches the light
+const sealBumpTex = canvasTex(512, 512, (g, w) => {
+  g.fillStyle = '#808080'; g.fillRect(0,0,w,w);
+  speckle(g, w, w, 14000, 'rgba(255,255,255,0.22)', 'rgba(0,0,0,0.22)');
+  g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 1.6;
+  for (let i=0;i<80;i++){ const x = Math.random()*w, y = Math.random()*w; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + rand(-30, 30), y + rand(-6, 6), x + rand(-60, 60), y + rand(-8, 8)); g.stroke(); }
+}, false);
+sealBumpTex.wrapS = sealBumpTex.wrapT = THREE.RepeatWrapping; sealBumpTex.repeat.set(3, 2);
+
+// Seals are dark on the back and pale underneath. This paints that onto a shape.
+// axis 'y' = dark on top (a seal lying down), 'z' = dark at the back (a seal standing up)
+function shadeGeo(geo, axis='y', dark=0.045){
+  const n = geo.attributes.normal, c = new Float32Array(n.count*3);
+  for (let i=0;i<n.count;i++){
+    const d = axis === 'y' ? n.getY(i) : -n.getZ(i)*0.8 + n.getY(i)*0.3;
+    let k = clamp((d + 0.5)/1.25, 0, 1); k = k*k*(3 - 2*k);
+    const v = mix(1, dark, k); c[i*3] = v; c[i*3+1] = v*1.02; c[i*3+2] = v*1.07;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(c, 3)); geo.userData.keep = true; return geo;
+}
+const SEAL_GEO = {};
+const sealGeo = (key, make) => SEAL_GEO[key] || (SEAL_GEO[key] = make());
+const sealSph = () => sealGeo('sph', () => shadeGeo(new THREE.SphereGeometry(1, 32, 24)));
+const sealSphUp = () => sealGeo('sphUp', () => shadeGeo(new THREE.SphereGeometry(1, 28, 20), 'z'));
+const plainSph = () => sealGeo('plain', () => { const s = new THREE.SphereGeometry(1, 18, 12); s.userData.keep = true; return s; });
+// the body profile from tail (back) to chest (front)
+const SEAL_PROFILE = [[0.0,-5.9],[0.45,-5.6],[1.05,-4.9],[1.7,-3.9],[2.25,-2.6],[2.6,-1.1],[2.72,0.4],[2.6,1.8],[2.25,3.0],[1.7,3.9],[0.9,4.5],[0,4.7]];
+const sealTorso = () => sealGeo('torso', () => { const g = new THREE.LatheGeometry(SEAL_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 44, 0, Math.PI*2); g.rotateX(Math.PI/2); return shadeGeo(g); });
+function sealRadiusAt(z){ const P = SEAL_PROFILE; for (let i=1;i<P.length;i++) if (z <= P[i][1]){ const k = (z - P[i-1][1])/(P[i][1] - P[i-1][1]); return mix(P[i-1][0], P[i][0], k); } return 0; }
+// a webbed back flipper: a fan of five toes with skin between them, pointing back (-z)
+function sealHind(K, s, shadow){
+  const g = new THREE.Group(), S = sealSph();
+  const mk = (x, y, z, sx, sy, sz, ry=0) => { const m = new THREE.Mesh(S, K.skin); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.y = ry; m.castShadow = shadow; g.add(m); return m; };
+  mk(0, 0, -0.55, 0.5, 0.32, 0.8);                    // ankle
+  mk(s*0.05, -0.05, -1.45, 0.78, 0.09, 0.85);         // webbing
+  for (let k=0;k<5;k++){ const a = (k - 2)*0.17, len = 0.95 - Math.abs(k - 2)*0.08;
+    mk(Math.sin(a)*1.1 + s*0.05, -0.02, -0.75 - Math.cos(a)*1.0, 0.11, 0.1, len, a); }
+  return g;
+}
+const sealWhiskerGeo = (len, droop) => sealGeo('wh' + len + '_' + droop, () => {
+  const c = new THREE.QuadraticBezierCurve3(new V3(0, 0, 0), new V3(len*0.5, 0.02, len*0.1), new V3(len, -droop, -len*0.06));
+  const g = new THREE.TubeGeometry(c, 8, 0.026, 4, false); g.userData.keep = true; return g;
+});
+// All the materials one seal needs. track() lets a playable fighter flash when hit.
+function sealMats(o, track){
+  const T = m => { if (track) track(m); return m; };
+  const P = (opts) => T(new THREE.MeshPhysicalMaterial(Object.assign({roughness:0.4, metalness:0}, opts)));
+  const Sd = (opts) => T(new THREE.MeshStandardMaterial(opts));
+  return {
+    skin: P({color:col(o.tint), vertexColors:true, map:sealSkinTex, bumpMap:sealBumpTex, bumpScale:o.bump, roughness:0.38, clearcoat:0.75, clearcoatRoughness:0.25}),
+    pad: P({color:col(o.pad), vertexColors:true, map:sealSkinTex, bumpMap:sealBumpTex, bumpScale:o.bump*2, roughness:0.5, clearcoat:0.4}),
+    nose: P({color:col(0x14171b), roughness:0.25, clearcoat:1, clearcoatRoughness:0.1}),
+    hole: Sd({color:col(0x050506), roughness:0.9}),
+    eye: P({color:col(0x0a0706), roughness:0.05, clearcoat:1, clearcoatRoughness:0.02}),
+    rim: Sd({color:col(0x1c2028), roughness:0.6}),
+    hi: Sd({color:col(0xffffff), emissive:col(0xffffff), emissiveIntensity:0.9, roughness:0.2}),
+    mouth: Sd({color:col(0x5a1820), roughness:0.6}), tongue: P({color:col(0xc0505e), roughness:0.35, clearcoat:0.6}),
+    tooth: Sd({color:col(0xf2eee2), roughness:0.3}), claw: Sd({color:col(0x2a231e), roughness:0.35}),
+    whisker: Sd({color:col(0xf0ece0), roughness:0.45}),
+    iris: Sd({color:col(0xff2a2a), emissive:col(0xff1a1a), emissiveIntensity:1.6, roughness:0.3}),
+    scar: Sd({color:col(0xc49a9a), roughness:0.7}),
+  };
+}
+// The seal's head, built big (boss size). Small seals just scale it down.
+function sealHead(K, o){
+  const g = new THREE.Group(), S = sealSph(), P = plainSph();
+  const mk = (geo, mat, x, y, z, sx, sy, sz, parent=g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = o.shadow; parent.add(m); return m; };
+  mk(S, K.skin, 0, 0, 0, 1.7, 1.5, 1.8);                         // round skull
+  mk(S, K.skin, 0, -0.28, 1.25, 1.12, 0.95, 1.15);               // muzzle
+  [-1, 1].forEach(s => mk(S, K.pad, s*0.43, -0.52, 1.95, 0.56, 0.46, 0.52)); // puffy whisker pads
+  mk(P, K.nose, 0, -0.04, 2.3, 0.34, 0.22, 0.21);                // nose
+  const nostrils = [-1, 1].map(s => { const n = mk(P, K.hole, s*0.12, -0.04, 2.48, 0.09, 0.04, 0.05); n.rotation.z = s*0.6; n.userData.sx = 0.09; return n; });
+  mk(P, K.mouth, 0, -0.66, 1.55, 0.72, 0.1, 0.85);               // roof of the mouth (seen when it opens)
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.75, 0.9); g.add(jaw);
+  mk(S, K.skin, 0, -0.12, 0.45, 0.92, 0.36, 1.18, jaw);          // chin
+  mk(P, K.mouth, 0, 0.1, 0.55, 0.74, 0.12, 0.95, jaw);
+  mk(P, K.tongue, 0, 0.17, 0.5, 0.45, 0.08, 0.66, jaw);
+  // big wet eyes
   const eyes = [];
   [-1, 1].forEach(s => {
-    const eye = mk(S, gloss, s*0.75, 0.35, 1.25, 0.4, 0.42, 0.3); head.add(eye); eyes.push(eye);
-    head.add(mk(S, white, s*0.66, 0.5, 1.5, 0.09, 0.09, 0.05));
-    if (boss){ const g2 = glowSprite(0xff2a2a, 1.5, 0.9); g2.position.set(s*0.75, 0.35, 1.45); head.add(g2); }
-    for (let k=0;k<3;k++){ const wh = mk(new THREE.CylinderGeometry(0.02, 0.01, 1.5, 4), white, s*(0.95), -0.35 + k*0.12, 2.0); wh.rotation.set(0, 0, s*(1.35 + k*0.12)); head.add(wh); }
-    const fl = new THREE.Group(); fl.position.set(s*2.0, 1.0, 2.8); body.add(fl);
-    const fm = mk(S, skin, s*0.8, 0, 0, 1.6, 0.25, 0.8); fm.rotation.z = s*0.5; fl.add(fm);
-    eyes.push(null);
+    const e = new THREE.Group(); e.position.set(s*0.78, 0.3, 1.25); e.rotation.y = s*0.38; g.add(e); eyes.push(e);
+    mk(P, K.rim, 0, 0, -0.04, 0.47, 0.49, 0.3, e);
+    mk(P, K.eye, 0, 0, 0.04, 0.41, 0.43, 0.3, e);
+    if (o.boss){ mk(P, K.iris, 0, 0, 0.29, 0.17, 0.19, 0.05, e); const gl = glowSprite(0xff2a2a, 1.4, 0.8); gl.position.set(0, 0, 0.35); e.add(gl); }
+    mk(P, K.hi, -s*0.13, 0.15, 0.31, 0.075, 0.075, 0.03, e); mk(P, K.hi, s*0.1, -0.12, 0.31, 0.035, 0.035, 0.02, e);
+    mk(P, K.hole, s*1.42, 0.22, -0.25, 0.06, 0.08, 0.06);          // ear hole
+    if (o.boss){ const br = mk(S, K.skin, s*0.74, 0.7, 1.4, 0.5, 0.13, 0.3); br.rotation.z = s*0.42; } // angry brow
   });
-  const jaw = new THREE.Group(); jaw.position.set(0, -0.75, 0.9); head.add(jaw);
-  jaw.add(mk(S, belly, 0, -0.1, 0.6, 0.9, 0.35, 1.3));
-  if (boss){
-    for (let k=0;k<7;k++){ const x = -0.6 + k*0.2, t = mk(new THREE.ConeGeometry(0.07, 0.4, 5), white, x, 0.2, 1.4 - Math.abs(x)*0.35); jaw.add(t); }
-    for (let k=0;k<6;k++){ const x = -0.5 + k*0.2, t = mk(new THREE.ConeGeometry(0.07, 0.4, 5), white, x, -0.5, 1.9 - Math.abs(x)*0.3); t.rotation.x = Math.PI; head.add(t); }
-    // a gold crown
-    const gold = new THREE.MeshStandardMaterial({color:col(0xffc93a), roughness:0.2, metalness:0.9});
-    const band = mk(new THREE.CylinderGeometry(1.0, 1.1, 0.5, 20, 1, true), gold, 0, 1.45, -0.1); band.material.side = THREE.DoubleSide; head.add(band);
-    for (let k=0;k<5;k++){ const a = k/5*Math.PI*2, c = mk(new THREE.ConeGeometry(0.22, 0.7, 6), gold, Math.cos(a)*1.0, 1.95, Math.sin(a)*1.0 - 0.1); head.add(c); const gem = glowSprite([0xff2a4a, 0x2ab0ff, 0x4aff7a][k % 3], 0.6, 0.9); gem.position.set(Math.cos(a)*1.02, 1.55, Math.sin(a)*1.02 - 0.1); head.add(gem); }
-    // ice spikes along his back
-    const ice = new THREE.MeshStandardMaterial({color:col(0xbfefff), emissive:col(0x4ad8ff), emissiveIntensity:0.35, roughness:0.05, transparent:true, opacity:0.85});
-    for (let k=0;k<8;k++){ const sp = mk(new THREE.ConeGeometry(0.35, 1.4 + (k % 2)*0.6, 6), ice, (k % 2 ? 0.6 : -0.6), 4.6 - Math.abs(k - 3)*0.12, 2.4 - k*0.85); sp.rotation.x = -0.4; body.add(sp); }
+  // whiskers fanning out of the pads, plus a few above the eyes
+  const whiskers = [];
+  const nW = o.lod > 1 ? 8 : 4;
+  [-1, 1].forEach(s => {
+    const wg = new THREE.Group(); wg.position.set(s*0.72, -0.5, 2.05); wg.scale.x = s; g.add(wg); whiskers.push(wg);
+    for (let k=0;k<nW;k++){ const len = 1.3 + Math.sin(k*1.7)*0.25 + (k < nW/2 ? 0.3 : 0), w = new THREE.Mesh(sealWhiskerGeo(+len.toFixed(1), 0.35), K.whisker);
+      w.rotation.set(0, 0.25 + k*0.05, (k - nW/2)*0.11 - 0.05); wg.add(w); }
+  });
+  if (o.boss){
+    for (let k=0;k<7;k++){ const x = -0.6 + k*0.2; mk(new THREE.ConeGeometry(0.07, 0.4, 5), K.tooth, x, 0.25, 1.35 - Math.abs(x)*0.35, 1, 1, 1, jaw); }
+    for (let k=0;k<6;k++){ const x = -0.5 + k*0.2, t = mk(new THREE.ConeGeometry(0.07, 0.4, 5), K.tooth, x, -0.62, 1.95 - Math.abs(x)*0.3, 1, 1, 1); t.rotation.x = Math.PI; }
+  } else {
+    for (let k=0;k<2;k++){ const t = mk(new THREE.ConeGeometry(0.06, 0.22, 5), K.tooth, k ? 0.22 : -0.22, -0.66, 2.05, 1, 1, 1); t.rotation.x = Math.PI; }
   }
-  const tail = new THREE.Group(); tail.position.set(0, 1.0, -5.0); body.add(tail);
-  [-1, 1].forEach(s => { const f = mk(S, skin, s*0.9, 0, -1.1, 1.3, 0.2, 1.8); f.rotation.y = s*0.5; tail.add(f); });
-  const flippers = body.children.filter(c => c.type === 'Group' && c !== front && c !== tail);
-  return {root, body, front, head, jaw, flippers, tail};
+  return {group:g, jaw, eyes, nostrils, whiskers};
+}
+// a front flipper with five claws, pointing out to side s (-1 left, 1 right)
+function sealFlipper(K, s, o){
+  const g = new THREE.Group(), S = sealSph();
+  const mk = (x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(S, K.skin); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = o.shadow; g.add(m); return m; };
+  mk(s*0.3, 0, 0, 0.75, 0.5, 0.75);
+  const p = mk(s*1.45, -0.08, 0.15, 1.4, 0.2, 0.8); p.rotation.y = -s*0.12; p.rotation.z = -s*0.08;
+  if (o.lod > 1) for (let k=0;k<5;k++){ const c = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.34, 5), K.claw); c.position.set(s*2.62, 0.06, 0.12 + (k - 2)*0.22 - Math.abs(k - 2)*0.0); c.rotation.z = -s*Math.PI/2; c.rotation.x = 0.15; g.add(c); }
+  return g;
+}
+
+// Builds a seal. boss=true makes KING FLOE: crown, royal cape, ice spikes, teeth and glowing red eyes.
+function buildSeal(scale, boss){
+  const lod = scale >= 0.9 ? 2 : 1, shadow = scale >= 0.9;
+  const K = sealMats(boss ? {tint:0x95a6ba, pad:0xbfc9d4, bump:0.03} : {tint:0xc8d0d8, pad:0xe2e6ea, bump:0.02});
+  const S = sealSph();
+  const mk = (geo, mat, parent, x, y, z, sx=1, sy=1, sz=1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = shadow; m.receiveShadow = shadow; parent.add(m); return m; };
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body); root.scale.setScalar(scale);
+  // one smooth body from tail to chest, tipped so the tail end rests lower
+  const torso = mk(sealTorso(), K.skin, body, 0, 2.45, 0, 1, 0.9, 1); torso.rotation.x = -0.12;
+  const front = new THREE.Group(); front.position.set(0, 2.6, 3.4); body.add(front);
+  mk(S, K.skin, front, 0, 1.2, 0.4, 2.2, 2.4, 2.4);                 // chest
+  mk(S, K.skin, front, 0, 2.05, 0.9, 1.95, 0.55, 1.95);             // a roll of blubber
+  mk(S, K.skin, front, 0, 2.6, 1.0, 1.62, 1.45, 1.65);              // neck
+  const H = sealHead(K, {boss, lod, shadow}), head = H.group; head.position.set(0, 3.4, 1.4); front.add(head);
+  const flippers = [-1, 1].map(s => { const fl = new THREE.Group(); fl.position.set(s*2.0, 1.0, 2.8); body.add(fl); const f = sealFlipper(K, s, {lod, shadow}); f.rotation.z = s*0.5; fl.add(f); return fl; });
+  const tail = new THREE.Group(); tail.position.set(0, 1.75, -5.5); body.add(tail);
+  [-1, 1].forEach(s => { const f = sealHind(K, s, shadow); f.position.set(s*0.5, 0, 0.2); f.scale.setScalar(1.25); f.rotation.set(0, -s*0.3, s*0.12); tail.add(f); });
+  if (boss){
+    const gold = new THREE.MeshStandardMaterial({color:col(0xffc93a), roughness:0.2, metalness:0.9});
+    // gold crown with gems
+    const band = mk(new THREE.CylinderGeometry(1.0, 1.1, 0.5, 24, 1, true), gold, head, 0, 1.45, -0.1); band.material.side = THREE.DoubleSide;
+    mk(new THREE.TorusGeometry(1.08, 0.07, 8, 32), gold, head, 0, 1.22, -0.1).rotation.x = Math.PI/2;
+    for (let k=0;k<5;k++){ const a = k/5*Math.PI*2; mk(new THREE.ConeGeometry(0.22, 0.7, 6), gold, head, Math.cos(a)*1.0, 1.95, Math.sin(a)*1.0 - 0.1);
+      mk(plainSph(), gold, head, Math.cos(a)*1.0, 2.33, Math.sin(a)*1.0 - 0.1, 0.09, 0.09, 0.09);
+      const gem = glowSprite([0xff2a4a, 0x2ab0ff, 0x4aff7a][k % 3], 0.6, 0.9); gem.position.set(Math.cos(a)*1.04, 1.5, Math.sin(a)*1.04 - 0.1); head.add(gem); }
+    // a royal velvet cape that drapes over his back, with gold trim and a white fur collar
+    const back = new THREE.Group(); back.position.set(0, 2.45, 0); back.rotation.x = -0.12; body.add(back);
+    const capeAt = (u, v) => { const z = mix(3.7, -2.0, v), r = sealRadiusAt(z) + 0.14 + v*0.12, th = u*mix(2.1, 2.7, v) + Math.sin(v*8 + u*5)*0.04;
+      return new V3(Math.sin(th)*r, Math.cos(th)*r*0.9 + 0.05, z); };
+    const capeGeo = new THREE.PlaneGeometry(1, 1, 18, 24), CP = capeGeo.attributes.position;
+    for (let i=0;i<CP.count;i++){ const q = capeAt(CP.getX(i), 0.5 - CP.getY(i)); CP.setXYZ(i, q.x, q.y, q.z); }
+    capeGeo.computeVertexNormals();
+    const velvet = new THREE.MeshStandardMaterial({color:col(0x8a1024), roughness:0.7, side:THREE.DoubleSide, bumpMap:sealBumpTex, bumpScale:0.02});
+    mk(capeGeo, velvet, back, 0, 0, 0);
+    const hem = (pts) => mk(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.08, 6, false), gold, back, 0, 0, 0);
+    hem(Array.from({length:21}, (_, i) => capeAt(-0.5 + i/20, 1)));
+    [-0.5, 0.5].forEach(u => hem(Array.from({length:13}, (_, i) => capeAt(u, i/12))));
+    const fur = new THREE.MeshStandardMaterial({color:col(0xf4f1ea), roughness:0.95, bumpMap:sealBumpTex, bumpScale:0.05});
+    const collar = mk(new THREE.TorusGeometry(2.05, 0.34, 12, 40), fur, front, 0, 1.9, 0.45); collar.rotation.x = Math.PI/2 + 0.45;
+    for (let k=0;k<12;k++){ const a = k/12*Math.PI*2, d = new THREE.Mesh(plainSph(), K.nose); d.position.set(Math.cos(a)*2.05, Math.sin(a)*2.05, -0.32); d.scale.set(0.08, 0.08, 0.13); collar.add(d); }
+    mk(plainSph(), gold, front, 0, 1.25, 2.55, 0.28, 0.28, 0.14); const bg = glowSprite(0xff2a4a, 0.9, 0.9); bg.position.set(0, 1.25, 2.72); front.add(bg);
+    // ice crystals along his back
+    const ice = new THREE.MeshStandardMaterial({color:col(0xbfefff), emissive:col(0x4ad8ff), emissiveIntensity:0.35, roughness:0.05, transparent:true, opacity:0.88, flatShading:true});
+    const ridge = new THREE.Group(); ridge.position.set(0, 2.45, 0); ridge.rotation.x = -0.12; body.add(ridge);
+    for (let k=0;k<6;k++){ const z = -2.1 - k*0.6, sp = mk(new THREE.ConeGeometry(0.34, 1.2 + (k % 2)*0.7, 5), ice, ridge, (k % 2 ? 0.5 : -0.5), sealRadiusAt(z)*0.9 - 0.15, z); sp.rotation.set(-0.4, k, (k % 2 ? -0.2 : 0.2)); }
+  }
+  return {root, body, torso, front, head, jaw:H.jaw, eyes:H.eyes, nostrils:H.nostrils, whiskers:H.whiskers, flippers, tail};
 }
 const iceSheetTex = canvasTex(1024, 1024, (g, w) => {
   const c = w/2, gr = g.createRadialGradient(c, c, 0, c, c, c); gr.addColorStop(0, '#d8f2ff'); gr.addColorStop(1, '#8ac4e8');
@@ -3021,11 +3148,11 @@ class SealBoss {
         this.walkT += dt*5*fast;
         this.pos.addScaledVector(this.faceDir(), 3*fast*dt);
         const sw = Math.sin(this.walkT); T.roll = sw*0.14; T.bodyY = Math.abs(sw)*0.45; T.flap = sw*0.5;
-        if (Math.sign(sw) !== this.lastHop){ this.lastHop = Math.sign(sw); shake = Math.max(shake, 0.18); sfx.thud(); dust(this.pos.clone().setY(0.2), 4, 2, 1.8, 0.8, 0xe8f2ff); }
+        if (Math.sign(sw) !== this.lastHop){ this.lastHop = Math.sign(sw); shake = Math.max(shake, 0.18); this.jigV = (this.jigV || 0) + 0.5; sfx.thud(); dust(this.pos.clone().setY(0.2), 4, 2, 1.8, 0.8, 0xe8f2ff); }
       }
       this.cd -= dt*fast;
       if (this.cd <= 0){
-        if ((this.domains === 0 && this.hp < this.maxHp*0.6) || (this.domains === 1 && this.hp < this.maxHp*0.25)) return this.startDomain(foe);
+        if (this.domains === 0 && this.hp < this.maxHp*0.6) return this.startDomain(foe); // only ONCE per fight
         const r = Math.random();
         this.phase = r < 0.35 ? 'flop' : r < 0.7 ? 'shards' : 'slide'; this.pT = 0; this.did = false;
         if (this.phase === 'flop'){
@@ -3039,7 +3166,7 @@ class SealBoss {
       if (this.pT < 0.9){ T.pitch = -0.9; T.bodyY = 1.2; T.jaw = 0.4; T.flap = Math.sin(t*14)*0.6; this.turnTo(Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), 4, dt); }
       else if (this.pT < 1.4){ const k = (this.pT - 0.9)/0.5; this.pos.lerpVectors(this.from, this.target, k); T.bodyY = Math.sin(k*Math.PI)*6; T.pitch = mix(-0.6, 0.25, k); T.flap = 0.9; }
       else {
-        this.pos.copy(this.target); this.phase = 'tired'; this.pT = 0; sfx.boom(); shake = 1.2;
+        this.pos.copy(this.target); this.phase = 'tired'; this.pT = 0; sfx.boom(); shake = 1.2; this.jigV = 2.2;
         ring(this.pos.clone().setY(0.15), 0xdff6ff, 7, 0.6); crater(this.pos, 4); debris(this.pos.clone().setY(0.2), 12, 10);
         sparks(this.pos.clone().setY(0.5), 0xdff6ff, 50, 14, 0.9, 0.6, 6); dust(this.pos.clone().setY(0.3), 16, 3, 2.4, 1.4, 0xf0f6ff);
         if (tw.dist < 5.5 && foe.pos.y < 2) foe.takeHit(16*P, tw.dir, 22, 9, this, 'big');
@@ -3110,7 +3237,7 @@ class SealBoss {
       else { s.root.position.y -= dt*6; }
     });
     if (a >= 3.9 && !this.bitten){
-      // the bite: anyone outside the gold circle is one-shot
+      // the bite: anyone outside the gold circle loses 75% of their health
       this.bitten = true; shake = 1.2;
       for (let i=0;i<6;i++) later(i*0.05, () => { noise(0.12, 2500, 0.6); tone(300, 80, 0.1, 'square', 0.15); });
       D.holes.forEach(s => sparks(s.home.clone().setY(0.4), 0xdff6ff, 10, 8, 0.6, 0.5, 5));
@@ -3124,7 +3251,7 @@ class SealBoss {
   clearDomain(){
     $('#domainFx').classList.remove('on');
     if (!this.dom) return;
-    scene.remove(this.dom.group); this.dom.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
+    scene.remove(this.dom.group); this.dom.group.traverse(o => { if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
     this.dom = null;
   }
   pose(T, dt, ko){
@@ -3134,7 +3261,16 @@ class SealBoss {
     m.front.rotation.x = C.pitch; m.head.rotation.x = C.head; m.jaw.rotation.x = C.jaw;
     if (!ko){ m.body.rotation.z = C.roll; m.body.position.y = C.bodyY; }
     m.flippers.forEach((f, i) => { f.rotation.z = (i ? 1 : -1)*C.flap; });
-    m.tail.rotation.x = Math.sin(performance.now()/300)*0.15;
+    const t = performance.now()/1000;
+    m.tail.rotation.x = Math.sin(t*3.3)*0.15; m.tail.rotation.y = Math.sin(t*1.7)*0.08;
+    const br = Math.sin(t*1.7); m.torso.scale.set(1 + br*0.015, 0.9*(1 + br*0.025), 1);
+    const shut = ko ? this.koT > 0.3 : (t % 4.3) < 0.13; m.eyes.forEach(e => { e.scale.y = shut ? 0.1 : 1; });
+    m.whiskers.forEach((w, i) => { w.rotation.y = Math.sin(t*9 + i*2)*(Math.sin(t*0.8 + i) > 0.5 ? 0.09 : 0.02); });
+    m.nostrils.forEach(n => { n.scale.x = n.userData.sx*(1 + Math.max(0, br)*0.6); });
+    this.jig = this.jig || 0; this.jigV = this.jigV || 0;
+    this.jigV += (-this.jig*80 - this.jigV*6)*dt; this.jig = clamp(this.jig + this.jigV*dt, -0.25, 0.25);
+    m.body.scale.set(1 + this.jig*0.5, 1 - this.jig, 1 + this.jig*0.5);
+    if (!ko && this.rise <= 0 && Math.random() < dt*0.7) dust(m.head.localToWorld(new V3(0, -0.1, 2.7)), 2, 0.4, 1.0, 1.2, 0xffffff);
     const mat = m.body.children[0].material;
     mat.emissive.setRGB(this.flash > 0 ? 0.7 : 0, this.flash > 0 ? 0.7 : 0, this.flash > 0 ? 0.8 : (this.enraged ? 0.08 : 0));
   }
@@ -3148,50 +3284,57 @@ const isUnlocked = id => id !== 'kingfloe' || floeUnlocked;
 // An upright seal built on the same skeleton as the other heroes, so he can walk, punch and block
 function buildSealFighter(def){
   const S = def.size, mats = [];
-  const M = (c, r, mt, extra) => { const m = new THREE.MeshStandardMaterial(Object.assign({color:col(c), roughness:r, metalness:mt}, extra || {})); m.userData.be = new THREE.Color(0, 0, 0); mats.push(m); return m; };
-  const skin = M(0x9aaabb, 0.3, 0.05, {map:sealSkinTex}), belly = M(0xd0d4da, 0.4, 0), gloss = M(0x0c1014, 0.08, 0.2), white = M(0xf2efe6, 0.3, 0);
-  const acc = M(0xffc93a, 0.2, 0.9), ice = M(0xbfefff, 0.05, 0, {emissive:col(0x4ad8ff), emissiveIntensity:0.35, transparent:true, opacity:0.85});
+  const track = m => { m.userData.be = m.emissive ? m.emissive.clone().multiplyScalar(m.emissiveIntensity || 1) : new THREE.Color(0, 0, 0); mats.push(m); };
+  const K = sealMats({tint:0xa3b2c4, pad:0xc8d0da, bump:0.006}, track);
+  const M = (c, r, mt, extra) => { const m = new THREE.MeshStandardMaterial(Object.assign({color:col(c), roughness:r, metalness:mt}, extra || {})); track(m); return m; };
+  const acc = M(0xffc93a, 0.2, 0.9), ice = M(0xbfefff, 0.05, 0, {emissive:col(0x4ad8ff), emissiveIntensity:0.35, transparent:true, opacity:0.88, flatShading:true});
+  const velvet = M(0x8a1024, 0.75, 0, {side:THREE.DoubleSide}), fur = M(0xf4f1ea, 0.95, 0);
   ice.userData.be = col(0x4ad8ff).multiplyScalar(0.35);
-  const Sp = new THREE.SphereGeometry(1, 24, 18);
-  const mk = (mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(Sp, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; return m; };
+  const Up = sealSphUp(), Sp = sealSph();
+  const mk = (geo, mat, parent, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body); body.scale.setScalar(S);
   const hips = new THREE.Group(); hips.position.y = 1.0; body.add(hips);
-  hips.add(mk(skin, 0, -0.45, 0, 0.56, 0.62, 0.5)); hips.add(mk(belly, 0, -0.42, 0.22, 0.46, 0.55, 0.3));
+  mk(Up, K.skin, hips, 0, -0.42, 0, 0.58, 0.66, 0.52);                 // big round belly
   const spine = new THREE.Group(); hips.add(spine);
-  spine.add(mk(skin, 0, 0.3, 0, 0.5, 0.62, 0.44)); spine.add(mk(belly, 0, 0.3, 0.18, 0.4, 0.52, 0.3));
-  spine.add(mk(skin, 0, 0.82, 0, 0.36, 0.3, 0.34));
-  for (let k=0;k<4;k++){ const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 6), ice); sp.position.set(0, 0.7 - k*0.22, -0.38); sp.rotation.x = -0.5; spine.add(sp); }
+  mk(Up, K.skin, spine, 0, 0.3, 0, 0.52, 0.64, 0.46);                  // chest
+  mk(Up, K.skin, spine, 0, -0.08, 0, 0.56, 0.5, 0.5);                  // fills the waist so he's one smooth shape
+  mk(Up, K.skin, spine, 0, 0.66, 0, 0.47, 0.14, 0.43);                 // a roll of blubber
+  mk(Up, K.skin, spine, 0, 0.84, 0.02, 0.41, 0.34, 0.39);              // thick seal neck
+  for (let k=0;k<4;k++){ const sp = mk(new THREE.ConeGeometry(0.07, 0.3, 5), ice, spine, 0, 0.62 - k*0.22, -0.4, 1, 1, 1); sp.rotation.x = -0.5; }
+  // a little royal cape with a fur collar
+  const R = [[0.86,0.4],[0.6,0.5],[0.3,0.56],[0,0.58],[-0.3,0.6],[-0.6,0.58],[-0.85,0.5]];
+  const rAt = y => { for (let i=1;i<R.length;i++) if (y >= R[i][0]){ const k = (y - R[i-1][0])/(R[i][0] - R[i-1][0]); return mix(R[i-1][1], R[i][1], k); } return 0.5; };
+  const capeAt = (u, v) => { const y = mix(0.84, -0.8, v), r = rAt(y) + 0.05 + v*0.1, th = u*mix(2.0, 2.5, v) + Math.sin(v*7 + u*6)*0.05; return new V3(Math.sin(th)*r, y, -Math.cos(th)*r*0.92); };
+  const capeGeo = new THREE.PlaneGeometry(1, 1, 14, 16), CP = capeGeo.attributes.position;
+  for (let i=0;i<CP.count;i++){ const q = capeAt(CP.getX(i), 0.5 - CP.getY(i)); CP.setXYZ(i, q.x, q.y, q.z); }
+  capeGeo.computeVertexNormals(); mk(capeGeo, velvet, spine, 0, 0, 0, 1, 1, 1);
+  mk(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(Array.from({length:17}, (_, i) => capeAt(-0.5 + i/16, 1))), 32, 0.018, 5, false), acc, spine, 0, 0, 0, 1, 1, 1);
+  const collar = mk(new THREE.TorusGeometry(0.42, 0.075, 10, 28), fur, spine, 0, 0.8, 0, 1, 1, 1); collar.rotation.x = Math.PI/2;
   const head = new THREE.Group(); head.position.y = 1.05; spine.add(head);
-  head.add(mk(skin, 0, 0, 0, 0.36, 0.32, 0.38)); head.add(mk(belly, 0, -0.08, 0.3, 0.22, 0.17, 0.22)); head.add(mk(gloss, 0, -0.02, 0.5, 0.07, 0.05, 0.05));
-  const eyes = [];
-  [-1, 1].forEach(s => {
-    const eg = new THREE.Group(); eg.position.set(s*0.15, 0.07, 0.28); head.add(eg); eyes.push(eg);
-    eg.add(mk(gloss, 0, 0, 0, 0.085, 0.09, 0.06)); eg.add(mk(white, -s*0.02, 0.03, 0.05, 0.02, 0.02, 0.01));
-    for (let k=0;k<3;k++){ const w = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.003, 0.3, 4), white); w.position.set(s*0.2, -0.1 + k*0.03, 0.42); w.rotation.z = s*(1.35 + k*0.12); head.add(w); }
-  });
-  for (let k=0;k<4;k++){ const t = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.07, 5), white); t.position.set(-0.06 + k*0.04, -0.2, 0.42); t.rotation.x = Math.PI; head.add(t); }
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.1, 18, 1, true), acc); band.position.y = 0.3; band.material.side = THREE.DoubleSide; head.add(band);
-  for (let k=0;k<5;k++){ const a = k/5*Math.PI*2, c = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 6), acc); c.position.set(Math.cos(a)*0.24, 0.42, Math.sin(a)*0.24); head.add(c); }
-  // flippers as arms
+  const H = sealHead(K, {boss:false, lod:2, shadow:true}); H.group.scale.setScalar(0.21); H.group.position.set(0, -0.02, -0.02); head.add(H.group);
+  const band = mk(new THREE.CylinderGeometry(0.22, 0.24, 0.1, 20, 1, true), acc, head, 0, 0.3, -0.02, 1, 1, 1); acc.side = THREE.DoubleSide;
+  for (let k=0;k<5;k++){ const a = k/5*Math.PI*2; mk(new THREE.ConeGeometry(0.045, 0.15, 6), acc, head, Math.cos(a)*0.22, 0.42, Math.sin(a)*0.22 - 0.02, 1, 1, 1); }
+  // flippers as arms, with claws at the tips
   const sh = [], el = [], fs = [];
   [-1, 1].forEach(s => {
     const shoulder = new THREE.Group(); shoulder.position.set(s*0.45, 0.55, 0); spine.add(shoulder);
-    shoulder.add(mk(skin, 0, -0.2, 0, 0.12, 0.26, 0.09));
+    mk(Sp, K.skin, shoulder, 0, -0.2, 0, 0.13, 0.27, 0.11);
     const elbow = new THREE.Group(); elbow.position.y = -0.42; shoulder.add(elbow);
-    elbow.add(mk(skin, 0, -0.2, 0, 0.15, 0.24, 0.06));
+    mk(Sp, K.skin, elbow, 0, -0.2, 0.01, 0.16, 0.25, 0.06);
+    for (let k=0;k<5;k++){ const c = mk(new THREE.ConeGeometry(0.014, 0.07, 5), K.claw, elbow, (k - 2)*0.045, -0.44 + Math.abs(k - 2)*0.02, 0.03, 1, 1, 1); c.rotation.x = Math.PI; }
     const fist = new THREE.Group(); fist.position.y = -0.4; elbow.add(fist);
     sh.push(shoulder); el.push(elbow); fs.push(fist);
   });
-  // tail flippers as feet (the body hides the legs)
+  // back flippers as feet (the body hides the legs)
   const hp = [], kn = [], ft = [];
   [-1, 1].forEach(s => {
     const hip = new THREE.Group(); hip.position.set(s*0.18, 0, 0); hips.add(hip);
     const knee = new THREE.Group(); knee.position.y = -0.47; hip.add(knee);
     const foot = new THREE.Group(); foot.position.set(0, -0.47, 0.045); knee.add(foot);
-    const fl = mk(skin, s*0.05, -0.03, 0.08, 0.16, 0.05, 0.3); fl.rotation.y = s*0.35; foot.add(fl);
+    const fl = sealHind(K, s, true); fl.position.set(s*0.03, -0.02, -0.12); fl.scale.set(0.16, 0.16, 0.16); fl.rotation.y = Math.PI + s*0.3; foot.add(fl);
     hp.push(hip); kn.push(knee); ft.push(foot);
   });
-  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape:null, mats, acc, eyes, halo:null, hips, fists:fs, feet:ft};
+  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape:null, mats, acc, eyes:H.eyes, halo:null, hips, fists:fs, feet:ft};
 }
 // A smaller Ice Domain the playable KING FLOE uses on his rival
 function makeMiniDomain(foe){
@@ -3213,7 +3356,7 @@ function makeMiniDomain(foe){
 }
 function clearMiniDomain(d){
   if (!d || d.gone) return; d.gone = true;
-  scene.remove(d.group); d.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
+  scene.remove(d.group); d.group.traverse(o => { if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
   if (!(rival && rival.dom)) $('#domainFx').classList.remove('on');
 }
 
@@ -3554,7 +3697,7 @@ function buildMenu(){
   const note = $('#modeNote');
   note.hidden = !(mode === 'story' || mode === 'boss');
   note.textContent = mode === 'story' ? 'Fight the other 9 heroes one at a time, then the giant monster MAGMAW! The fights get harder as you go, and your progress is saved.'
-    : bossId === 'kingfloe' ? 'KING FLOE belly-flops, spits ice spears and slides across the arena. Punch him while he is out of breath! Watch out for his ICE DOMAIN: when the ice spreads, run into the GOLD CIRCLE before the seals bite. Outside it, the seals bite off 75% of your health! Beat him to win a secret reward.'
+    : bossId === 'kingfloe' ? 'KING FLOE belly-flops, spits ice spears and slides across the arena. Punch him while he is out of breath! Watch out for his ICE DOMAIN (he only uses it once per fight): when the ice spreads, run into the GOLD CIRCLE before the seals bite. Outside it, the seals bite off 75% of your health! Beat him to win a secret reward.'
     : bossId === 'tyrannox' ? 'TYRANNOX flies! Use your special moves to hit him in the air, and punch him when he lands after a dive. Hit him with an ultimate to knock him out of the sky. Run out of the blue circles before lightning strikes!'
     : 'MAGMAW is as tall as a building! Jump over his shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.';
   $('#bossWrap').hidden = mode !== 'boss';
