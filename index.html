@@ -1438,7 +1438,7 @@ function buildModel(def){
   }
 
   // ---- arms with elbows and real fists ----
-  const sh = [], el = [];
+  const sh = [], el = [], fs = [], ft = [];
   [-1, 1].forEach(s => {
     const shoulder = new THREE.Group(); shoulder.position.set(s*(0.19*B*(def.female ? 0.92 : 1) + 0.035), 0.63, 0); spine.add(shoulder);
     const delt = part(sphere(0.082*B, 18, 14), def.trimShoulders ? trim : suit, s*0.008, 0.005, 0); delt.scale.set(1.05, 1.1, 1.0); shoulder.add(delt);
@@ -1453,7 +1453,7 @@ function buildModel(def){
     const palm = part(sphere(0.042, 16, 12), acc); palm.scale.set(0.9, 1.15, 1.05); fist.add(palm);
     for (let f=0; f<4; f++){ const k = part(capsule(0.0135, 0.012), acc, (f - 1.5)*0.019, -0.04, 0.012); k.rotation.x = Math.PI/2; fist.add(k); }
     const thumb = part(capsule(0.012, 0.03), acc, -s*0.03, -0.012, 0.026); thumb.rotation.set(0.3, 0, s*1.1); fist.add(thumb);
-    sh.push(shoulder); el.push(elbow);
+    sh.push(shoulder); el.push(elbow); fs.push(fist);
   });
   // ---- legs with knees and boots ----
   const hp = [], kn = [];
@@ -1468,7 +1468,7 @@ function buildModel(def){
     const foot = new THREE.Group(); foot.position.set(0, -0.47, 0.045); knee.add(foot);
     const f1 = part(capsule(0.052*B, 0.13), bootM); f1.rotation.x = Math.PI/2; f1.scale.set(1.1, 1, 0.78); foot.add(f1);
     foot.add(part(new THREE.BoxGeometry(0.11*B, 0.022, 0.27), sole, 0, -0.04, 0));
-    hp.push(hip); kn.push(knee);
+    hp.push(hip); kn.push(knee); ft.push(foot);
   });
   let halo = null;
   if (def.halo){ halo = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.022, 8, 48), new THREE.MeshBasicMaterial({color:col(def.accent), transparent:true, opacity:0.85})); halo.position.y = 1.35*S; root.add(halo); }
@@ -1479,7 +1479,7 @@ function buildModel(def){
     cape = new THREE.Mesh(cg, cm); cape.castShadow = true; cape.position.set(0, 0.7, -0.2*D - 0.02); spine.add(cape);
     cape.userData.base = Float32Array.from(cg.attributes.position.array);
   }
-  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape, mats, acc, eyes, halo};
+  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape, mats, acc, eyes, halo, hips, fists:fs, feet:ft};
 }
 
 /* =========================================================
@@ -1679,7 +1679,7 @@ const projectiles = [];
 let player = null, rival = null, ai = null;
 let mode = 'cpu', diffKey = 'normal';
 function lerpAngle(a, b, t){ let d = b - a; while (d > Math.PI) d -= Math.PI*2; while (d < -Math.PI) d += Math.PI*2; return a + d*t; }
-const POSE_KEYS = ['sLx','sLz','eL','sRx','sRz','eR','hL','kL','hR','kR','lean','twist','crouch','headX','lie'];
+const POSE_KEYS = ['sLx','sLz','eL','sRx','sRz','eR','hL','kL','hR','kR','lean','twist','crouch','headX','lie','hipYaw','shrug','wristL','wristR','pivotR','stepL'];
 
 class Fighter {
   constructor(def, opts={}){
@@ -1835,6 +1835,7 @@ class Fighter {
     if (this.ghost || this.ko || this.inv > 0 || this.kd > 0) return false;
     const flat = dir.clone().setY(0); if (flat.lengthSq() < 1e-6) flat.copy(this.faceDir()).negate(); flat.normalize();
     const facing = this.faceDir().dot(flat) < -0.2;
+    this.hitSide = new V3(-this.faceDir().z, 0, this.faceDir().x).dot(flat) > 0 ? 1 : -1;
     let blocked = this.blocking && facing;
     if (blocked && kind === 'huge'){ blocked = false; dmg *= 0.5; popText('GUARD BREAK!', this.center(), '#ff3b5c'); }
     if (blocked){
@@ -2084,18 +2085,19 @@ class Fighter {
     const m = this.m, t = performance.now()/1000, S = this.def.size;
     m.root.rotation.y = this.yaw;
     // a fighting stance with fists up
-    const T = {sLx:-0.6, sLz:-0.1, eL:-1.95, sRx:-0.4, sRz:0.1, eR:-2.15, hL:-0.32, kL:0.5, hR:0.2, kR:0.35, lean:0.08, twist:0.3, crouch:-0.05 + Math.sin(t*2.6 + (this.isPlayer ? 0 : 1))*0.012, headX:-0.05, lie:0};
+    const breath = Math.sin(t*2.6 + (this.isPlayer ? 0 : 1));
+    const T = {sLx:-0.6, sLz:-0.1, eL:-1.95, sRx:-0.4, sRz:0.1, eR:-2.15, hL:-0.32, kL:0.5, hR:0.2, kR:0.35, lean:0.1, twist:-0.05, crouch:-0.07 + breath*0.012, headX:0.06, lie:0, hipYaw:0.42 + breath*0.02, shrug:0.02 + breath*0.006, wristL:0, wristR:0, pivotR:0, stepL:0};
     if (this.moving){
       this.walkT += dt*13;
       const sw = Math.sin(this.walkT), cw = Math.cos(this.walkT);
       T.hL = -sw*0.6; T.hR = sw*0.6; T.kL = 0.2 + Math.max(0, cw)*1.0; T.kR = 0.2 + Math.max(0, -cw)*1.0;
-      T.twist = 0.15 + sw*0.12; T.sLx += sw*0.15; T.sRx -= sw*0.15; T.crouch = -0.04 - Math.abs(cw)*0.04; T.lean = 0.14;
+      T.twist = sw*0.06; T.hipYaw = 0.3; T.sLx += sw*0.1; T.sRx -= sw*0.1; T.crouch = -0.08 - Math.abs(cw)*0.025; T.lean = 0.16;
     }
     if (this.atk > 0){
       const ph = 1 - this.atk/this.atkDur, ext = ph < 0.35 ? ph/0.35 : Math.max(0, 1 - (ph-0.35)/0.65), e = ext*ext*(3 - 2*ext);
-      if (this.combo === 0){ T.sLx = mix(T.sLx, -1.55, e); T.eL = mix(T.eL, -0.1, e); T.sLz = mix(T.sLz, 0.15, e); T.twist = mix(T.twist, 0.6, e); T.lean += 0.1*e; }
-      else if (this.combo === 1){ T.sRx = mix(T.sRx, -1.55, e); T.eR = mix(T.eR, -0.1, e); T.sRz = mix(T.sRz, -0.15, e); T.twist = mix(T.twist, -0.6, e); T.hR = mix(T.hR, 0.45, e); T.lean += 0.15*e; }
-      else { T.sRx = mix(T.sRx, -2.7, e); T.eR = mix(T.eR, -0.4, e); T.twist = mix(T.twist, -0.85, e); T.crouch = mix(-0.18, 0, e); T.lean = mix(0.25, -0.1, e); T.kL = mix(0.9, 0.2, e); T.kR = mix(0.9, 0.2, e); }
+      if (this.combo === 0){ T.sLx = mix(T.sLx, -1.55, e); T.eL = mix(T.eL, -0.1, e); T.sLz = mix(T.sLz, 0.15, e); T.twist = mix(T.twist, 0.25, e); T.hipYaw = mix(T.hipYaw, 0.55, e); T.lean += 0.1*e; T.wristL = -1.4*e; T.shrug = 0.05*e; T.stepL = 0.1*e; }
+      else if (this.combo === 1){ T.sRx = mix(T.sRx, -1.55, e); T.eR = mix(T.eR, -0.1, e); T.sRz = mix(T.sRz, -0.15, e); T.twist = mix(T.twist, -0.35, e); T.hipYaw = mix(T.hipYaw, -0.25, e); T.lean += 0.18*e; T.wristR = 1.4*e; T.pivotR = 0.7*e; T.shrug = 0.05*e; }
+      else { T.sRx = mix(T.sRx, -2.7, e); T.eR = mix(T.eR, -0.4, e); T.twist = mix(T.twist, -0.45, e); T.hipYaw = mix(0.5, -0.35, e); T.crouch = mix(-0.2, -0.02, e); T.lean = mix(0.3, -0.1, e); T.wristR = 0.6*e; T.pivotR = 0.8*e; T.stepL = 0.14*e; }
     }
     if (this.blocking){ Object.assign(T, {sLx:-1.35, sLz:0.45, eL:-2.3, sRx:-1.35, sRz:-0.45, eR:-2.3, crouch:-0.12, hL:-0.5, kL:0.9, hR:0.15, kR:0.7, twist:0.1, headX:0.25, lean:0.12}); }
     const a = this.action;
@@ -2105,12 +2107,12 @@ class Fighter {
         Object.assign(T, {sRx:0.9, eR:-1.3, sLx:-1.0, eL:-0.6, twist:0.7, lean:-0.05, crouch: a.type === 'crash' ? -0.15 : -0.08, hL:-0.6, kL:0.8});
         if (a.t < 0.1){ Object.assign(T, {sRx:-1.6, eR:0, twist:-0.7, lean:0.35}); }
       }
-      else if (a.type === 'throw'){ Object.assign(T, {sLx:-1.5, eL:0, sRx:-1.5, eR:0, sLz:0.25, sRz:-0.25, lean:0.2, twist:0}); }
-      else if (a.type === 'nova'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, lean:-0.1, headX:-0.3}); }
-      else if (a.type === 'air'){ Object.assign(T, {sRx:-2.9, eR:-0.3, sLx:-2.9, eL:-0.3, sLz:0.2, sRz:-0.2, twist:0}); }
+      else if (a.type === 'throw'){ Object.assign(T, {sLx:-1.5, eL:0, sRx:-1.5, eR:0, sLz:0.25, sRz:-0.25, lean:0.2, twist:0, hipYaw:0.1}); }
+      else if (a.type === 'nova'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, hipYaw:0, lean:-0.1, headX:-0.3}); }
+      else if (a.type === 'air'){ Object.assign(T, {sRx:-2.9, eR:-0.3, sLx:-2.9, eL:-0.3, sLz:0.2, sRz:-0.2, twist:0, hipYaw:0}); }
       else if (a.type === 'whip' || a.type === 'tele'){ Object.assign(T, {sRx:-1.6, eR:-0.05, sRz:-0.1, twist:-0.5, lean:0.25}); }
-      else if (a.type === 'blizzard' || a.type === 'burst'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, lean:-0.1, headX:-0.3}); }
-      else if (a.type === 'target'){ Object.assign(T, {sRx:-2.9, eR:-0.2, sLx:-2.9, eL:-0.2, sLz:0.15, sRz:-0.15, twist:0, headX:-0.3}); }
+      else if (a.type === 'blizzard' || a.type === 'burst'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, hipYaw:0, lean:-0.1, headX:-0.3}); }
+      else if (a.type === 'target'){ Object.assign(T, {sRx:-2.9, eR:-0.2, sLx:-2.9, eL:-0.2, sLz:0.15, sRz:-0.15, twist:0, hipYaw:0, headX:-0.3}); }
       else if (a.type === 'slam'){
         if (a.t > 0.12) Object.assign(T, {sLx:-2.9, sRx:-2.9, eL:-0.4, eR:-0.4, twist:0, lean:-0.15, headX:-0.2});
         else Object.assign(T, {sLx:-1.0, sRx:-1.0, eL:-0.2, eR:-0.2, twist:0, lean:0.55, crouch:-0.22, kL:1.0, kR:1.0, hL:-0.7, hR:-0.7});
@@ -2118,9 +2120,9 @@ class Fighter {
     }
     if (this.dashT > 0 && !a) Object.assign(T, {lean:0.55, sLx:0.7, sRx:0.7, eL:-0.4, eR:-0.4, hL:-0.6, kL:0.8, hR:0.5, kR:0.3, twist:0});
     if (!this.onGround && !a && this.dashT <= 0 && this.kd <= 0 && !this.ko){ T.hL = -0.9; T.kL = 1.5; T.hR = -0.2; T.kR = 0.9; if (this.vy > 0){ T.sLx = -1.1; T.sRx = -1.1; } }
-    if (this.stun > 0 && !this.blocking && this.kd <= 0) Object.assign(T, {lean:-0.35, sLz:-0.7, sRz:0.7, eL:-0.4, eR:-0.4, sLx:0.3, sRx:0.3, headX:-0.35, twist:0});
-    if (this.victory && !this.ko){ const b = Math.abs(Math.sin(t*4)); Object.assign(T, {sLx:-2.9, sLz:0.15, eL:-0.25, sRx:-0.4, sRz:0.9, eR:-2.2, twist:0, lean:-0.12, headX:-0.3, hL:-0.1, kL:0.15, hR:0.1, kR:0.15, crouch:b*0.06}); }
-    if (this.ko || this.kd > 0) Object.assign(T, {lie:1, sLz:-0.5, sRz:0.5, sLx:0, sRx:0, eL:-0.3, eR:-0.3, hL:0, kL:0.1, hR:-0.1, kR:0.3, twist:0, lean:0, crouch:0, headX:0});
+    if (this.stun > 0 && !this.blocking && this.kd <= 0) Object.assign(T, {lean:-0.35, sLz:-0.7, sRz:0.7, eL:-0.4, eR:-0.4, sLx:0.3, sRx:0.3, headX:-0.45, twist:(this.hitSide || 1)*0.35, shrug:0.06, crouch:-0.1});
+    if (this.victory && !this.ko){ const b = Math.abs(Math.sin(t*4)); Object.assign(T, {sLx:-2.9, sLz:0.15, eL:-0.25, sRx:-0.4, sRz:0.9, eR:-2.2, twist:0, hipYaw:0.1, lean:-0.12, headX:-0.3, hL:-0.1, kL:0.15, hR:0.1, kR:0.15, crouch:-0.03 + b*0.04}); }
+    if (this.ko || this.kd > 0) Object.assign(T, {lie:1, sLz:-0.5, sRz:0.5, sLx:0, sRx:0, eL:-0.3, eR:-0.3, hL:0, kL:0.1, hR:-0.1, kR:0.3, twist:0, lean:0, crouch:0, headX:0, hipYaw:0, shrug:0});
     const C = this.cur, k = 1 - Math.exp(-24*dt), kl = 1 - Math.exp(-9*dt);
     if (this.frozen > 0 && !this.ko) for (const key of POSE_KEYS) T[key] = C[key];
     this.blinkT = (this.blinkT === undefined ? rand(1, 4) : this.blinkT) - dt;
@@ -2132,7 +2134,27 @@ class Fighter {
     m.armL.rotation.set(C.sLx, 0, C.sLz); m.armR.rotation.set(C.sRx, 0, C.sRz);
     m.elbowL.rotation.x = C.eL; m.elbowR.rotation.x = C.eR;
     m.hipL.rotation.x = C.hL; m.hipR.rotation.x = C.hR; m.kneeL.rotation.x = C.kL; m.kneeR.rotation.x = C.kR;
-    m.spine.rotation.set(C.lean, C.twist, 0); m.head.rotation.x = C.headX;
+    m.hips.rotation.y = C.hipYaw*(1 - C.lie);
+    m.spine.rotation.set(C.lean, C.twist, 0); m.head.rotation.set(C.headX, -(C.twist + C.hipYaw)*0.85*(1 - C.lie), 0);
+    m.armL.position.y = 0.63 + C.shrug; m.armR.position.y = 0.63 + C.shrug;
+    m.fists[0].rotation.y = C.wristL; m.fists[1].rotation.y = C.wristR;
+    // legs: feet stay planted on the ground and knees bend like a real person (2-bone inverse kinematics)
+    const grounded = this.onGround && !this.ko && this.kd <= 0 && C.lie < 0.05 && this.dashT <= 0 && !(a && (a.type === 'nova' || a.type === 'vdash'));
+    if (grounded){
+      const hipY = 1.0 + m.body.position.y/S, L1 = 0.47, L2 = 0.47, mv = this.moving ? 1 : 0, ph = this.walkT;
+      [[m.hipL, m.kneeL, m.feet[0], 0.17 + C.stepL, Math.sin(ph), Math.max(0, Math.cos(ph)), -1], [m.hipR, m.kneeR, m.feet[1], -0.21, -Math.sin(ph), Math.max(0, -Math.cos(ph)), 1]].forEach(([hp, kn, ft, z0, sw, lift, sd]) => {
+        const tz = z0 + mv*0.2*sw, ty = 0.06 + mv*lift*0.1 - hipY;
+        const d = Math.min(Math.hypot(tz, ty), L1 + L2 - 0.003);
+        const kb = Math.PI - Math.acos(clamp((L1*L1 + L2*L2 - d*d)/(2*L1*L2), -1, 1));
+        const ang = Math.atan2(tz, -ty), off = Math.acos(clamp((L1*L1 + d*d - L2*L2)/(2*L1*d), -1, 1));
+        hp.rotation.x = -(ang + off); kn.rotation.x = kb; hp.rotation.z = sd*0.06;
+        ft.rotation.x = -(hp.rotation.x + kn.rotation.x);
+      });
+      m.feet[1].rotation.y = C.pivotR;
+    } else {
+      m.hipL.rotation.z = m.hipR.rotation.z = 0;
+      m.feet.forEach(f => { f.rotation.x += (0 - f.rotation.x)*k; f.rotation.y = 0; });
+    }
     m.body.rotation.x = -Math.PI/2*C.lie; m.body.position.y = C.crouch + 0.22*S*C.lie;
     if (m.cape){
       const want = (this.moving || this.dashT > 0 || !this.onGround) ? 1 : 0; this.capeF += (want - this.capeF)*(1 - Math.exp(-4*dt));
