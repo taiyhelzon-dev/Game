@@ -160,6 +160,13 @@ a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-sp
   -webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 22%,#000 55%);mask-image:radial-gradient(circle at 50% 50%,transparent 22%,#000 55%)}
 #speed.on{animation:speed 1s ease-out}
 @keyframes speed{0%{opacity:0;transform:rotate(0) scale(1.2)}12%{opacity:.75}100%{opacity:0;transform:rotate(8deg) scale(1)}}
+#domainFx{position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;transition:opacity .6s;background:radial-gradient(ellipse at center,rgba(0,40,80,.1) 30%,rgba(0,20,50,.75))}
+#domainFx.on{opacity:1}
+#cut{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 8vh);z-index:21;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+#cut .big{pointer-events:auto}
+.cut-line{font-family:var(--display);font-size:clamp(34px,7vw,76px);color:var(--gold);-webkit-text-stroke:2px #000;text-shadow:5px 5px 0 #000;line-height:1}
+.cut-sub{font-weight:800;font-size:clamp(15px,2.2vw,22px);color:#fff;text-shadow:0 2px 6px #000;max-width:720px}
 #vig{position:fixed;inset:0;z-index:8;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(170,0,0,.6))}
 #vig.roar{animation:vroar 1.1s ease-out}
 #vig.low{animation:vlow .85s infinite}
@@ -232,6 +239,10 @@ a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-sp
     <div class="row-label" id="mapLabel">Pick a map</div>
     <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
+    <div id="petWrap" hidden>
+      <div class="row-label">Your buddy</div>
+      <div class="chips" id="petChips" style="margin-top:10px"></div>
+    </div>
     <div>
       <div class="row-label">Graphics</div>
       <div class="chips" id="gfxChips" style="margin-top:10px"></div>
@@ -328,6 +339,12 @@ a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-sp
 <button id="musicBtn">♪ MUSIC ON</button>
 <div id="speed"></div>
 <div id="vig"></div>
+<div id="domainFx"></div>
+<div id="cut" hidden>
+  <div class="cut-line" id="cutLine"></div>
+  <div class="cut-sub" id="cutSub"></div>
+  <button class="big" id="cutBtn" hidden>AWESOME!</button>
+</div>
 <div id="flash"></div>
 <div id="vs" hidden>
   <div class="vs-side vs-l"><div class="vs-name" id="vsLName"></div><div class="vs-title" id="vsLTitle"></div></div>
@@ -1706,6 +1723,7 @@ function showCombo(i){
   el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
 }
 function comboHit(i){
+  if (i === 0 && pet) pet.cheer = 0.6;
   const c = combos[i];
   c.n++; c.t = 1.5; c.best = Math.max(c.best, c.n);
   if ([5, 8, 12, 15].includes(c.n)) sfx.bell();
@@ -2853,6 +2871,291 @@ class Dragon {
 }
 
 /* =========================================================
+   BOSS 3: KING FLOE, the Seal Tyrant (a giant seal king made of blubber and ice)
+   ========================================================= */
+const SEAL_DEF = {id:'kingfloe', name:'KING FLOE', title:'The Seal Tyrant', css:'#7ad0ff', accent:0x7ad0ff, size:5, power:1, hp:700};
+const sealSkinTex = canvasTex(256, 256, (g, w) => {
+  g.fillStyle = '#6a7a8c'; g.fillRect(0,0,w,w);
+  for (let i=0;i<240;i++){ g.fillStyle = `rgba(28,36,52,${rand(0.25, 0.6)})`; g.beginPath(); g.ellipse(Math.random()*w, Math.random()*w, rand(2, 9), rand(2, 7), rand(0, 3), 0, Math.PI*2); g.fill(); }
+  speckle(g, w, w, 2500, 'rgba(255,255,255,0.08)', 'rgba(0,0,0,0.1)');
+});
+sealSkinTex.wrapS = sealSkinTex.wrapT = THREE.RepeatWrapping; sealSkinTex.repeat.set(2, 2);
+// Builds a seal. boss=true adds the crown, ice spikes, teeth and red eyes.
+function buildSeal(scale, boss){
+  const skin = new THREE.MeshStandardMaterial({map:sealSkinTex, color:col(boss ? 0x8a9aac : 0xb4c0cc), roughness:0.3, metalness:0.05});
+  const belly = new THREE.MeshStandardMaterial({color:col(boss ? 0xc4cad2 : 0xe2e6ea), roughness:0.4});
+  const gloss = new THREE.MeshStandardMaterial({color:col(0x0c1014), roughness:0.08, metalness:0.2});
+  const white = new THREE.MeshStandardMaterial({color:col(0xf2efe6), roughness:0.3});
+  const S = new THREE.SphereGeometry(1, 28, 20);
+  const mk = (geo, mat, x=0, y=0, z=0, sx=1, sy=1, sz=1) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; return m; };
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body); root.scale.setScalar(scale);
+  body.add(mk(S, skin, 0, 2.4, 0, 2.6, 2.4, 5.2));
+  body.add(mk(S, belly, 0, 1.9, 0.3, 2.3, 2.0, 4.8));
+  const front = new THREE.Group(); front.position.set(0, 2.6, 3.4); body.add(front);
+  front.add(mk(S, skin, 0, 1.2, 0.4, 2.2, 2.4, 2.4));
+  const head = new THREE.Group(); head.position.set(0, 3.4, 1.4); front.add(head);
+  head.add(mk(S, skin, 0, 0, 0, 1.7, 1.5, 1.8));
+  head.add(mk(S, belly, 0, -0.35, 1.5, 1.0, 0.8, 1.0));
+  head.add(mk(S, gloss, 0, -0.05, 2.45, 0.36, 0.22, 0.22));
+  const eyes = [];
+  [-1, 1].forEach(s => {
+    const eye = mk(S, gloss, s*0.75, 0.35, 1.25, 0.4, 0.42, 0.3); head.add(eye); eyes.push(eye);
+    head.add(mk(S, white, s*0.66, 0.5, 1.5, 0.09, 0.09, 0.05));
+    if (boss){ const g2 = glowSprite(0xff2a2a, 1.5, 0.9); g2.position.set(s*0.75, 0.35, 1.45); head.add(g2); }
+    for (let k=0;k<3;k++){ const wh = mk(new THREE.CylinderGeometry(0.02, 0.01, 1.5, 4), white, s*(0.95), -0.35 + k*0.12, 2.0); wh.rotation.set(0, 0, s*(1.35 + k*0.12)); head.add(wh); }
+    const fl = new THREE.Group(); fl.position.set(s*2.0, 1.0, 2.8); body.add(fl);
+    const fm = mk(S, skin, s*0.8, 0, 0, 1.6, 0.25, 0.8); fm.rotation.z = s*0.5; fl.add(fm);
+    eyes.push(null);
+  });
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.75, 0.9); head.add(jaw);
+  jaw.add(mk(S, belly, 0, -0.1, 0.6, 0.9, 0.35, 1.3));
+  if (boss){
+    for (let k=0;k<7;k++){ const x = -0.6 + k*0.2, t = mk(new THREE.ConeGeometry(0.07, 0.4, 5), white, x, 0.2, 1.4 - Math.abs(x)*0.35); jaw.add(t); }
+    for (let k=0;k<6;k++){ const x = -0.5 + k*0.2, t = mk(new THREE.ConeGeometry(0.07, 0.4, 5), white, x, -0.5, 1.9 - Math.abs(x)*0.3); t.rotation.x = Math.PI; head.add(t); }
+    // a gold crown
+    const gold = new THREE.MeshStandardMaterial({color:col(0xffc93a), roughness:0.2, metalness:0.9});
+    const band = mk(new THREE.CylinderGeometry(1.0, 1.1, 0.5, 20, 1, true), gold, 0, 1.45, -0.1); band.material.side = THREE.DoubleSide; head.add(band);
+    for (let k=0;k<5;k++){ const a = k/5*Math.PI*2, c = mk(new THREE.ConeGeometry(0.22, 0.7, 6), gold, Math.cos(a)*1.0, 1.95, Math.sin(a)*1.0 - 0.1); head.add(c); const gem = glowSprite([0xff2a4a, 0x2ab0ff, 0x4aff7a][k % 3], 0.6, 0.9); gem.position.set(Math.cos(a)*1.02, 1.55, Math.sin(a)*1.02 - 0.1); head.add(gem); }
+    // ice spikes along his back
+    const ice = new THREE.MeshStandardMaterial({color:col(0xbfefff), emissive:col(0x4ad8ff), emissiveIntensity:0.35, roughness:0.05, transparent:true, opacity:0.85});
+    for (let k=0;k<8;k++){ const sp = mk(new THREE.ConeGeometry(0.35, 1.4 + (k % 2)*0.6, 6), ice, (k % 2 ? 0.6 : -0.6), 4.6 - Math.abs(k - 3)*0.12, 2.4 - k*0.85); sp.rotation.x = -0.4; body.add(sp); }
+  }
+  const tail = new THREE.Group(); tail.position.set(0, 1.0, -5.0); body.add(tail);
+  [-1, 1].forEach(s => { const f = mk(S, skin, s*0.9, 0, -1.1, 1.3, 0.2, 1.8); f.rotation.y = s*0.5; tail.add(f); });
+  const flippers = body.children.filter(c => c.type === 'Group' && c !== front && c !== tail);
+  return {root, body, front, head, jaw, flippers, tail};
+}
+const iceSheetTex = canvasTex(1024, 1024, (g, w) => {
+  const c = w/2, gr = g.createRadialGradient(c, c, 0, c, c, c); gr.addColorStop(0, '#d8f2ff'); gr.addColorStop(1, '#8ac4e8');
+  g.fillStyle = gr; g.beginPath(); g.arc(c, c, c, 0, Math.PI*2); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2;
+  for (let i=0;i<40;i++){ let x = Math.random()*w, y = Math.random()*w; g.beginPath(); g.moveTo(x, y); for (let k=0;k<5;k++){ x += rand(-60, 60); y += rand(-60, 60); g.lineTo(x, y); } g.stroke(); }
+});
+
+class SealBoss {
+  constructor(diff){
+    this.def = SEAL_DEF; this.isBoss = true; this.D = diff; this.dmgMul = diff.dmg;
+    this.m = buildSeal(1, true); scene.add(this.m.root);
+    this.pos = this.m.root.position; this.kb = new V3(); this.maxHp = this.def.hp;
+    this.cur = {pitch:0, head:0, jaw:0, flap:0, roll:0, bodyY:0};
+    this.dom = null; this.reset(0, 9);
+  }
+  dispose(){ this.clearDomain(); scene.remove(this.m.root); }
+  reset(x, z){
+    this.clearDomain();
+    this.pos.set(0, 0, z > 0 ? 9 : -9); this.yaw = z > 0 ? Math.PI : 0;
+    this.hp = this.maxHp; this.ko = false; this.koT = 0; this.rise = 2.0; this.roared = false;
+    this.phase = 'walk'; this.pT = 0; this.cd = 2.2; this.did = false; this.domains = 0;
+    this.flash = 0; this.frozen = 0; this.enraged = false; this.walkT = 0; this.lastHop = 0; this.target = new V3();
+    this.meter = 0; this.stun = 0; this.kd = 0; this.atk = 0; this.action = null; this.slam = false; this.blocking = false; this.inv = 0;
+    this.m.root.visible = true; this.m.body.rotation.set(0, 0, 0); this.m.body.position.y = -9; this.m.root.rotation.y = this.yaw;
+  }
+  center(){ return new V3(this.pos.x, this.pos.y + 3, this.pos.z); }
+  faceDir(){ return new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
+  toward(foe){ const d = new V3(foe.pos.x - this.pos.x, 0, foe.pos.z - this.pos.z); const len = d.length(); return {dir: len > 0.001 ? d.divideScalar(len) : this.faceDir(), dist: len}; }
+  mouthPos(){ return this.m.head.localToWorld(new V3(0, -0.5, 2.3)); }
+  turnTo(want, rate, dt){ let dy = want - this.yaw; while (dy > Math.PI) dy -= Math.PI*2; while (dy < -Math.PI) dy += Math.PI*2; this.yaw += clamp(dy, -rate*dt, rate*dt); }
+  takeHit(dmg, dir, force, lift, attacker, kind, opts={}){
+    if (this.ko || this.rise > 0) return false;
+    this.hp = Math.max(0, this.hp - dmg);
+    this.flash = 0.1; if (opts.freeze) this.frozen = Math.min(1.0, opts.freeze);
+    attacker.meter = Math.min(100, attacker.meter + (kind === 'huge' ? 0 : 9));
+    hitFx(this, attacker, kind, false);
+    if (!this.enraged && this.hp < this.maxHp*0.5){ this.enraged = true; showBanner('KING FLOE IS FURIOUS!', '#7ad0ff', 1.6, true); sfx.roar(); }
+    if (this.hp <= 0){ this.ko = true; this.koT = 0; this.clearDomain(); sfx.ko(); sfx.roar(); shake = 1.2; onKO(this); }
+    return true;
+  }
+  update(dt, inp, foe){
+    const m = this.m, t = performance.now()/1000;
+    this.flash = Math.max(0, this.flash - dt); this.frozen = Math.max(0, this.frozen - dt);
+    const T = {pitch:0, head:Math.sin(t*1.6)*0.06, jaw:0, flap:Math.sin(t*2)*0.1, roll:0, bodyY:Math.sin(t*1.8)*0.08};
+    if (this.rise > 0){
+      // bursting up out of the icy water at the start
+      this.rise -= dt; if (!this.roared){ this.roared = true; sfx.roar(); }
+      const k = 1 - Math.max(0, this.rise)/2.0; m.body.position.y = -9*(1 - k*k*(3 - 2*k));
+      if (Math.random() < 0.7) sparks(this.pos.clone().add(new V3(rand(-4, 4), 0.3, rand(-4, 4))), 0xdff6ff, 3, 6, 0.8, 0.5, 5);
+      shake = Math.max(shake, 0.4); this.pose(T, dt); return;
+    }
+    if (this.ko){
+      this.koT += dt; m.body.rotation.z = Math.min(Math.PI*0.85, this.koT*1.6); m.body.position.y = -Math.min(1.0, this.koT*0.6);
+      T.jaw = 0.5; T.flap = Math.sin(t*10)*0.4*Math.max(0, 1 - this.koT/2); this.pose(T, dt, true); return;
+    }
+    const tw = this.toward(foe);
+    if (this.phase === 'domain'){ this.updateDomain(dt, foe, T); this.pose(T, dt); return; }
+    if (this.frozen > 0 || state !== 'fight'){ this.pose(T, dt); return; }
+    this.pT += dt;
+    const P = this.dmgMul, fast = this.enraged ? 1.35 : 1;
+    if (this.phase === 'walk'){
+      this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 1.6, dt);
+      if (tw.dist > 7){
+        this.walkT += dt*5*fast;
+        this.pos.addScaledVector(this.faceDir(), 3*fast*dt);
+        const sw = Math.sin(this.walkT); T.roll = sw*0.14; T.bodyY = Math.abs(sw)*0.45; T.flap = sw*0.5;
+        if (Math.sign(sw) !== this.lastHop){ this.lastHop = Math.sign(sw); shake = Math.max(shake, 0.18); sfx.thud(); dust(this.pos.clone().setY(0.2), 4, 2, 1.8, 0.8, 0xe8f2ff); }
+      }
+      this.cd -= dt*fast;
+      if (this.cd <= 0){
+        if ((this.domains === 0 && this.hp < this.maxHp*0.6) || (this.domains === 1 && this.hp < this.maxHp*0.25)) return this.startDomain(foe);
+        const r = Math.random();
+        this.phase = r < 0.35 ? 'flop' : r < 0.7 ? 'shards' : 'slide'; this.pT = 0; this.did = false;
+        if (this.phase === 'flop'){
+          this.target.copy(foe.pos).setY(0); this.from = this.pos.clone(); sfx.roar();
+          const warn = new THREE.Mesh(new THREE.RingGeometry(4.6, 5.3, 48), new THREE.MeshBasicMaterial({color:col(0x7ad0ff), transparent:true, side:THREE.DoubleSide, depthWrite:false}));
+          warn.rotation.x = -Math.PI/2; warn.position.copy(this.target).setY(0.07); temp(warn, 1.4, (mm, k) => { mm.material.opacity = 0.4 + 0.4*Math.sin(k*30); });
+        }
+      }
+    } else if (this.phase === 'flop'){
+      // rears up, leaps and belly-flops onto you
+      if (this.pT < 0.9){ T.pitch = -0.9; T.bodyY = 1.2; T.jaw = 0.4; T.flap = Math.sin(t*14)*0.6; this.turnTo(Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), 4, dt); }
+      else if (this.pT < 1.4){ const k = (this.pT - 0.9)/0.5; this.pos.lerpVectors(this.from, this.target, k); T.bodyY = Math.sin(k*Math.PI)*6; T.pitch = mix(-0.6, 0.25, k); T.flap = 0.9; }
+      else {
+        this.pos.copy(this.target); this.phase = 'tired'; this.pT = 0; sfx.boom(); shake = 1.2;
+        ring(this.pos.clone().setY(0.15), 0xdff6ff, 7, 0.6); crater(this.pos, 4); debris(this.pos.clone().setY(0.2), 12, 10);
+        sparks(this.pos.clone().setY(0.5), 0xdff6ff, 50, 14, 0.9, 0.6, 6); dust(this.pos.clone().setY(0.3), 16, 3, 2.4, 1.4, 0xf0f6ff);
+        if (tw.dist < 5.5 && foe.pos.y < 2) foe.takeHit(16*P, tw.dir, 22, 9, this, 'big');
+      }
+    } else if (this.phase === 'shards'){
+      // spits a fan of freezing ice spears
+      this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 2.5, dt); T.jaw = this.pT > 0.4 ? 0.8 : 0.2; T.pitch = -0.2;
+      const volley = () => { const base = Math.atan2(tw.dir.x, tw.dir.z), mp = this.mouthPos(); sfx.zap();
+        for (let i=-2;i<=2;i++){ const a = base + i*0.2, d = new V3(Math.sin(a), 0, Math.cos(a)); const from = mp.clone(); const to = foe.center(); d.y = (to.y - from.y)/Math.max(4, tw.dist);
+          spawnProjectile(this, from, d.normalize().multiplyScalar(22), {radius:0.6, dmg:8, force:6, lift:0, color:0x9fe8ff, kind:'big', size:0.5, spear:true, freeze:0.8}); } };
+      if (this.pT > 0.6 && !this.did){ this.did = true; volley(); }
+      if (this.enraged && this.pT > 1.1 && this.did !== 2){ this.did = 2; volley(); }
+      if (this.pT > 1.6){ this.phase = 'walk'; this.cd = 1.8; }
+    } else if (this.phase === 'slide'){
+      // slides across the ice on his belly
+      if (this.pT < 0.7){ this.turnTo(Math.atan2(tw.dir.x, tw.dir.z), 3, dt); T.pitch = -0.3; T.bodyY = 0.3; this.slideDir = this.faceDir(); }
+      else if (this.pT < 2.0){
+        this.pos.addScaledVector(this.slideDir, 22*dt); T.pitch = 0.15; T.flap = 0.8;
+        if (Math.random() < 0.8) sparks(this.pos.clone().setY(0.3), 0xe8f6ff, 2, 4, 0.5, 0.5, 2);
+        const tw2 = this.toward(foe); if (!this.did && tw2.dist < 4 && foe.pos.y < 2){ this.did = true; foe.takeHit(18*P, tw2.dir, 24, 7, this, 'big'); }
+        if (Math.hypot(this.pos.x, this.pos.z) > ARENA_R - 3){ this.pT = 2.0; shake = 0.6; sfx.thud(); }
+      } else { this.phase = 'tired'; this.pT = 0.8; }
+    } else if (this.phase === 'tired'){
+      // out of breath: the best time to punch him!
+      T.head = 0.45; T.jaw = 0.25; T.bodyY = Math.sin(t*6)*0.1;
+      if (Math.random() < 0.15) sparks(this.m.head.localToWorld(new V3(rand(-1, 1), 2, 0)), 0xffe14d, 1, 1, 0.7, 0.5, 1);
+      if (this.pT > 2.4){ this.phase = 'walk'; this.cd = this.enraged ? 1.3 : 2.0; }
+    }
+    const r = Math.hypot(this.pos.x, this.pos.z), maxR = ARENA_R - 2.5; if (r > maxR){ this.pos.x *= maxR/r; this.pos.z *= maxR/r; }
+    this.pose(T, dt);
+  }
+  // ---------- ICE DOMAIN: FEEDING FRENZY ----------
+  startDomain(foe){
+    this.phase = 'domain'; this.pT = 0; this.domains++; this.bitten = false;
+    cinematic(this); sfx.roar(); showBanner('ICE DOMAIN', '#7ad0ff', 1.4);
+    $('#domainFx').classList.add('on');
+    const group = new THREE.Group(); scene.add(group);
+    const sheet = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R + 1, 72), new THREE.MeshStandardMaterial({map:iceSheetTex, transparent:true, opacity:0, roughness:0.05, metalness:0.2, depthWrite:false}));
+    sheet.rotation.x = -Math.PI/2; sheet.position.y = 0.03; sheet.receiveShadow = true; group.add(sheet);
+    // the safe spot: a glowing gold circle somewhere you can reach in time
+    let safe; for (let k=0;k<20;k++){ const a = rand(0, Math.PI*2), r = rand(6, 11); safe = foe.pos.clone().add(new V3(Math.cos(a)*r, 0, Math.sin(a)*r)).setY(0); if (Math.hypot(safe.x, safe.z) < ARENA_R - 4) break; }
+    if (Math.hypot(safe.x, safe.z) > ARENA_R - 4) safe.multiplyScalar((ARENA_R - 4)/Math.hypot(safe.x, safe.z));
+    const gold = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({color:col(0xffd23f), transparent:true, side:THREE.DoubleSide, depthWrite:false, toneMapped:false}));
+    gold.rotation.x = -Math.PI/2; gold.position.copy(safe).setY(0.08); group.add(gold);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 14, 32, 1, true), new THREE.MeshBasicMaterial({color:col(0xffd23f), transparent:true, opacity:0.18, side:THREE.DoubleSide, depthWrite:false, blending:THREE.AdditiveBlending}));
+    beam.position.copy(safe).setY(7); group.add(beam);
+    // holes in the ice with seals waiting underneath
+    const holes = [], waterM = new THREE.MeshBasicMaterial({color:col(0x04121e)});
+    for (let i=0;i<12;i++){
+      let p;
+      if (i < 8){ const a = i/8*Math.PI*2; p = new V3(Math.cos(a)*16.5, 0, Math.sin(a)*16.5); }
+      else { for (let k=0;k<20;k++){ const a = rand(0, Math.PI*2), r = rand(5, 13); p = new V3(Math.cos(a)*r, 0, Math.sin(a)*r); if (p.distanceTo(safe) > 5.5) break; } }
+      const hole = new THREE.Mesh(new THREE.CircleGeometry(1.4, 24), waterM); hole.rotation.x = -Math.PI/2; hole.position.copy(p).setY(0.05); group.add(hole);
+      const seal = buildSeal(0.3, false); seal.root.position.copy(p).setY(-2.6); seal.home = p.clone(); group.add(seal.root); holes.push(seal);
+    }
+    this.dom = {group, sheet, gold, beam, safe, holes};
+  }
+  updateDomain(dt, foe, T){
+    const D = this.dom, a = (this.pT += dt), t = performance.now()/1000;
+    T.pitch = -0.7; T.jaw = 0.8; T.flap = Math.sin(t*12)*0.6; T.bodyY = 1.0;
+    D.sheet.material.opacity = Math.min(0.85, a*1.5);
+    D.gold.material.opacity = 0.55 + 0.45*Math.sin(t*10); D.beam.material.opacity = 0.14 + 0.08*Math.sin(t*6);
+    [1, 2, 3].forEach((n, i) => { const at = 0.9 + i; if (a >= at && a - dt < at) { showBanner(String(4 - n), '#ffffff', 0.7); sfx.bell(); } });
+    if (a >= 0.6 && a - dt < 0.6) showBanner('GET TO THE GOLD CIRCLE!', '#ffd23f', 1.2, true);
+    D.holes.forEach((s, i) => {
+      if (a < 3.9){ s.root.position.y = mix(-2.6, -0.35 + Math.sin(t*5 + i)*0.15, Math.min(1, a/1.5)); s.root.lookAt(foe.pos.x, s.root.position.y, foe.pos.z); }
+      else if (a < 4.4){ const k = (a - 3.9)/0.5; s.root.position.lerpVectors(s.home, foe.pos.clone().setY(0.3), k*0.85); s.root.position.y = Math.sin(k*Math.PI)*2.5; s.jaw.rotation.x = 0.7; }
+      else { s.root.position.y -= dt*6; }
+    });
+    if (a >= 3.9 && !this.bitten){
+      // the bite: anyone outside the gold circle is one-shot
+      this.bitten = true; shake = 1.2;
+      for (let i=0;i<6;i++) later(i*0.05, () => { noise(0.12, 2500, 0.6); tone(300, 80, 0.1, 'square', 0.15); });
+      D.holes.forEach(s => sparks(s.home.clone().setY(0.4), 0xdff6ff, 10, 8, 0.6, 0.5, 5));
+      const inSafe = Math.hypot(foe.pos.x - D.safe.x, foe.pos.z - D.safe.z) < 3.0;
+      if (!inSafe && !foe.ko){ foe.inv = 0; foe.kd = 0; foe.blocking = false; koText = 'ONE SHOT!'; showBanner('ONE SHOT!', '#7ad0ff', 1.6); popText('CHOMP!', foe.center(), '#7ad0ff'); foe.takeHit(9999, foe.pos.clone().sub(D.safe), 10, 6, this, 'huge'); }
+      else if (!foe.ko){ showBanner('YOU SURVIVED!', '#ffd23f', 1.4, true); popText('SAFE!', foe.center(), '#ffd23f'); }
+    }
+    if (a > 5.0){ D.sheet.material.opacity = Math.max(0, 0.85 - (a - 5.0)*2); }
+    if (a > 5.5){ this.clearDomain(); this.phase = 'tired'; this.pT = 0; }
+  }
+  clearDomain(){
+    $('#domainFx').classList.remove('on');
+    if (!this.dom) return;
+    scene.remove(this.dom.group); this.dom.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
+    this.dom = null;
+  }
+  pose(T, dt, ko){
+    const m = this.m, C = this.cur, k = 1 - Math.exp(-10*dt);
+    for (const key in T) C[key] += (T[key] - C[key])*k;
+    m.root.rotation.y = this.yaw;
+    m.front.rotation.x = C.pitch; m.head.rotation.x = C.head; m.jaw.rotation.x = C.jaw;
+    if (!ko){ m.body.rotation.z = C.roll; m.body.position.y = C.bodyY; }
+    m.flippers.forEach((f, i) => { f.rotation.z = (i ? 1 : -1)*C.flap; });
+    m.tail.rotation.x = Math.sin(performance.now()/300)*0.15;
+    const mat = m.body.children[0].material;
+    mat.emissive.setRGB(this.flash > 0 ? 0.7 : 0, this.flash > 0 ? 0.7 : 0, this.flash > 0 ? 0.8 : (this.enraged ? 0.08 : 0));
+  }
+  animate(){}
+}
+
+/* ----- the Seal Pup buddy you win by beating KING FLOE ----- */
+let petUnlocked = false, petOn = true, pet = null;
+try { petUnlocked = localStorage.getItem('heroclash-pet') === 'seal'; petOn = localStorage.getItem('heroclash-pet-on') !== 'off'; } catch(e){}
+function petTick(dt){
+  const want = petUnlocked && petOn && player && !player.ghost;
+  if (want && !pet){ pet = {m:buildSeal(0.14, false), t:0, cheer:0}; scene.add(pet.m.root); pet.m.root.position.copy(player.pos).add(new V3(1.5, 0, -1)); }
+  if (!want && pet){ scene.remove(pet.m.root); pet = null; }
+  if (!pet) return;
+  const p = pet.m.root, f = player.faceDir(), side = new V3(f.z, 0, -f.x);
+  const goal = player.pos.clone().addScaledVector(side, 1.4).addScaledVector(f, -1.2).setY(0);
+  const d = goal.clone().sub(p.position); d.y = 0; const dist = d.length();
+  pet.t += dt; pet.cheer = Math.max(0, pet.cheer - dt);
+  if (dist > 0.15){ p.position.addScaledVector(d.normalize(), Math.min(dist, dt*Math.max(3, dist*3))); p.rotation.y = Math.atan2(d.x, d.z); }
+  else p.rotation.y = Math.atan2(f.x, f.z);
+  const moving = dist > 0.3;
+  p.position.y = (moving ? Math.abs(Math.sin(pet.t*12))*0.12 : 0) + (pet.cheer > 0 ? Math.abs(Math.sin(pet.t*14))*0.45 : 0);
+  pet.m.flippers.forEach((fl, i) => { fl.rotation.z = (i ? 1 : -1)*(pet.cheer > 0 ? Math.sin(pet.t*20)*0.9 : moving ? Math.sin(pet.t*12)*0.5 : 0.05); });
+  pet.m.front.rotation.x = pet.cheer > 0 ? -0.5 : -0.15;
+}
+
+/* ----- the reward cutscene after beating KING FLOE ----- */
+function sealCutscene(){
+  const boss = rival, c = $('#cut'), line = $('#cutLine'), sub = $('#cutSub');
+  $('#hud').hidden = true; $('#touch').hidden = true;
+  c.hidden = false; $('#cutBtn').hidden = true;
+  line.textContent = 'CONGRATULATIONS!'; sub.textContent = `You beat the Seal Boss, ${boss.def.name}!`;
+  fanfare(); winFocus = player;
+  later(1.6, () => {
+    // the giant seal turns into a tiny seal pup
+    const bp = boss.center(); boss.m.root.visible = false;
+    sparks(bp, 0xffd23f, 70, 14, 1.2, 0.7, 4); sparks(bp, 0x7ad0ff, 50, 12, 1.0, 0.6, 4); dust(boss.pos.clone().setY(0.5), 16, 3, 2.4, 1.4, 0xffffff); sfx.boom();
+    petUnlocked = true; petOn = true; try { localStorage.setItem('heroclash-pet', 'seal'); localStorage.setItem('heroclash-pet-on', 'on'); } catch(e){}
+    petTick(0); if (pet) pet.m.root.position.copy(boss.pos).setY(0);
+    line.textContent = 'Here is a little reward for you...'; sub.textContent = '';
+  });
+  later(4.4, () => {
+    line.textContent = 'You unlocked: SEAL PUP!'; sub.textContent = 'Your new buddy follows you into every fight and cheers when you land hits.';
+    if (pet) pet.cheer = 2.5; fanfare();
+    for (let i=0;i<5;i++) later(i*0.3, () => sparks(player.center().add(new V3(rand(-2, 2), 2, rand(-2, 2))), [0xff6ad5, 0xffd23f, 0x7ad0ff][i % 3], 30, 10, 1.1, 0.6, 7));
+    $('#cutBtn').hidden = false;
+  });
+}
+$('#cutBtn').onclick = () => { $('#cut').hidden = true; showOver(true); playSong('menu'); };
+
+/* =========================================================
    COMPUTER RIVAL BRAIN
    ========================================================= */
 class AI {
@@ -3131,6 +3434,9 @@ function buildMenu(){
     b.innerHTML = cardHTML(h); b.onclick = () => { rivalId = h.id; buildMenu(); refreshPreview(); showcaseHero(h.id, mode === 'local2' ? 'PLAYER 2' : 'YOUR RIVAL'); };
     riv.appendChild(b);
   });
+  $('#petWrap').hidden = !petUnlocked;
+  const pc = $('#petChips'); pc.innerHTML = '';
+  [[true, 'SEAL PUP ON'], [false, 'OFF']].forEach(([v, l]) => { const c = document.createElement('button'); c.className = 'chip' + (petOn === v ? ' sel' : ''); c.textContent = l; c.onclick = () => { petOn = v; try { localStorage.setItem('heroclash-pet-on', v ? 'on' : 'off'); } catch(e){} buildMenu(); }; pc.appendChild(c); });
   const gc = $('#gfxChips'); gc.innerHTML = '';
   [['pretty', 'PRETTY'], ['fast', 'FAST (older devices)']].forEach(([k, l]) => {
     const c = document.createElement('button'); c.className = 'chip' + (k === gfx ? ' sel' : ''); c.textContent = l;
@@ -3157,11 +3463,12 @@ function buildMenu(){
   const note = $('#modeNote');
   note.hidden = !(mode === 'story' || mode === 'boss');
   note.textContent = mode === 'story' ? 'Fight the other 9 heroes one at a time, then the giant monster MAGMAW! The fights get harder as you go, and your progress is saved.'
+    : bossId === 'kingfloe' ? 'KING FLOE belly-flops, spits ice spears and slides across the arena. Punch him while he is out of breath! Watch out for his ICE DOMAIN: when the ice spreads, run into the GOLD CIRCLE before the seals bite. Outside it, it is an instant ONE SHOT! Beat him to win a secret reward.'
     : bossId === 'tyrannox' ? 'TYRANNOX flies! Use your special moves to hit him in the air, and punch him when he lands after a dive. Hit him with an ultimate to knock him out of the sky. Run out of the blue circles before lightning strikes!'
     : 'MAGMAW is as tall as a building! Jump over his shockwaves, get out of the red circles before the lava lands, and stay away from his fire breath.';
   $('#bossWrap').hidden = mode !== 'boss';
   const bc = $('#bossChips'); bc.innerHTML = '';
-  [['magmaw', 'MAGMAW · Volcano Titan'], ['tyrannox', 'TYRANNOX · Storm Dragon']].forEach(([k, l]) => {
+  [['magmaw', 'MAGMAW · Volcano Titan'], ['tyrannox', 'TYRANNOX · Storm Dragon'], ['kingfloe', 'KING FLOE · Seal Tyrant']].forEach(([k, l]) => {
     const c = document.createElement('button'); c.className = 'chip' + (k === bossId ? ' sel' : ''); c.textContent = l;
     c.onclick = () => { bossId = k; buildMenu(); }; bc.appendChild(c);
   });
@@ -3296,18 +3603,22 @@ function onKO(loser){
   endRound(loser === player ? 1 : 0, 'K.O.!');
   sfx.ko(); slowT = 1.2;
 }
+let koText = null;
 function endRound(winner, text){
   state = 'ko'; wins[winner]++; updatePips();
   const wf = winner === 0 ? player : rival;
-  if (text === 'K.O.!' && wf.hp >= wf.maxHp - 0.01) text = 'PERFECT!';
-  later(0.25, () => netBanner(text, text === 'PERFECT!' ? '#ffd23f' : '#ff3b5c', 1.8));
+  if (text === 'K.O.!' && koText){ text = koText; }
+  else if (text === 'K.O.!' && !wf.isBoss && wf.hp >= wf.maxHp - 0.01) text = 'PERFECT!';
+  koText = null;
+  later(0.25, () => netBanner(text, text === 'PERFECT!' ? '#ffd23f' : text === 'ONE SHOT!' ? '#7ad0ff' : '#ff3b5c', 1.8));
   later(2.4, () => { const w = winner === 0 ? player : rival; netBanner(w.def.name + (toWin === 1 ? ' WINS!' : ' WINS THE ROUND'), w.def.css, 1.4, true); });
   later(4.0, () => {
     if (state !== 'ko') return;
     if (wins[winner] >= toWin){
       state = 'over'; wf.victory = true; winFocus = wf; winAng = Math.atan2(camPos.x - wf.pos.x, camPos.z - wf.pos.z);
       if (winner === 0 || mode === 'local2') fanfare();
-      later(2.6, () => { if (mode === 'story' && story) storyResult(winner === 0); else showOver(winner === 0); playSong('menu'); });
+      if (winner === 0 && rival.def.id === 'kingfloe') later(1.6, sealCutscene);
+      else later(2.6, () => { if (mode === 'story' && story) storyResult(winner === 0); else showOver(winner === 0); playSong('menu'); });
     }
     else { round++; startRound(); }
   });
@@ -3346,6 +3657,7 @@ function toMenu(){
   $('#pause').hidden = true; $('#over').hidden = true; $('#hud').hidden = true; $('#touch').hidden = true; $('#menu').hidden = false;
   previewKey = ''; buildMenu(); refreshPreview(); playSong('menu'); winFocus = null; cine = null;
   if (atmo){ clearAtmo(); setMap(mapId); }
+  $('#cut').hidden = true; $('#domainFx').classList.remove('on');
   $('#vig').classList.remove('low');
 }
 $('#startBtn').onclick = () => mode === 'story' ? newStory() : startMatch();
@@ -3407,7 +3719,7 @@ function storyCard(lost){
 let bossId = 'magmaw';
 function setupBossFight(diffK, which = bossId){
   if (player) player.dispose(); if (rival) rival.dispose();
-  player = new Fighter(HEROES[youId], {isPlayer:true}); rival = which === 'tyrannox' ? new Dragon(DIFFS[diffK]) : new Boss(DIFFS[diffK]); ai = null; previewKey = ''; applyBossAtmo(which);
+  player = new Fighter(HEROES[youId], {isPlayer:true}); rival = which === 'tyrannox' ? new Dragon(DIFFS[diffK]) : which === 'kingfloe' ? new SealBoss(DIFFS[diffK]) : new Boss(DIFFS[diffK]); ai = null; previewKey = ''; applyBossAtmo(which);
 }
 function startStoryFight(){
   $('#story').hidden = true;
@@ -3596,13 +3908,15 @@ function clearAtmo(){
 }
 function applyBossAtmo(which){
   clearAtmo();
-  const storm = which === 'tyrannox';
-  const P = storm
+  const storm = which === 'tyrannox', ice = which === 'kingfloe';
+  const P = ice ? {sky:[0x0a1a30, 0x5a8ab8, 0x0a1420], sunCol:[0.8, 0.9, 1.0], fog:[0x9ab8d8, 30, 140], sun:[0xdde8ff, 1.6], hemi:[0xbcd4ff, 0x405060, 0.9], fill:[0x7ad0ff, 0.5], exp:1.0}
+    : storm
     ? {sky:[0x03050c, 0x18203a, 0x04050a], sunCol:[0.15, 0.2, 0.3], fog:[0x0c101c, 22, 105], sun:[0x8090c0, 0.8], hemi:[0x46567c, 0x16161e, 0.55], fill:[0x4ad8ff, 0.45], exp:1.0}
     : {sky:[0x100202, 0x7a1808, 0x180505], sunCol:[1.0, 0.3, 0.08], fog:[0x320c06, 22, 105], sun:[0xff7040, 1.6], hemi:[0x8a4040, 0x261010, 0.6], fill:[0xff4a1a, 0.6], exp:1.05};
   const u = sky.material.uniforms;
   u.top.value.copy(col(P.sky[0])); u.mid.value.copy(col(P.sky[1])); u.bot.value.copy(col(P.sky[2])); u.sunCol.value.set(...P.sunCol);
-  if (storm){ domeMat.uniforms.tint.value.setRGB(0.55, 0.65, 0.95); domeMat.uniforms.bright.value = 0.45; } else { domeMat.uniforms.tint.value.setRGB(1.0, 0.42, 0.3); domeMat.uniforms.bright.value = 0.7; }
+  if (ice){ domeMat.uniforms.tint.value.setRGB(0.78, 0.9, 1.1); domeMat.uniforms.bright.value = 0.85; }
+  else if (storm){ domeMat.uniforms.tint.value.setRGB(0.55, 0.65, 0.95); domeMat.uniforms.bright.value = 0.45; } else { domeMat.uniforms.tint.value.setRGB(1.0, 0.42, 0.3); domeMat.uniforms.bright.value = 0.7; }
   scene.fog.color.copy(col(P.fog[0])); scene.fog.near = P.fog[1]; scene.fog.far = P.fog[2];
   sun.color.copy(col(P.sun[0])); sun.intensity = P.sun[1];
   hemi.color.copy(col(P.hemi[0])); hemi.groundColor.copy(col(P.hemi[1])); hemi.intensity = P.hemi[2];
@@ -3610,10 +3924,10 @@ function applyBossAtmo(which){
   const group = new THREE.Group(); scene.add(group);
   const N = storm ? 700 : 380;
   const geo = storm ? new THREE.BoxGeometry(0.025, 0.9, 0.025) : new THREE.PlaneGeometry(0.12, 0.12);
-  const mat = new THREE.MeshBasicMaterial({color:col(storm ? 0x9ab4d8 : 0x6a6260), transparent:true, opacity: storm ? 0.45 : 0.85, side:THREE.DoubleSide, depthWrite:false});
+  const mat = new THREE.MeshBasicMaterial({color:col(storm ? 0x9ab4d8 : ice ? 0xffffff : 0x6a6260), transparent:true, opacity: storm ? 0.45 : 0.85, side:THREE.DoubleSide, depthWrite:false});
   const inst = new THREE.InstancedMesh(geo, mat, N); group.add(inst);
   const F = []; for (let i=0;i<N;i++) F.push({x:rand(-30, 30), y:rand(0, 22), z:rand(-30, 30), v: storm ? rand(22, 30) : rand(0.6, 1.4), s:rand(0, 6)});
-  atmo = {storm, group, inst, F, N, flash:0, next:rand(2, 5), baseHemi:P.hemi[2], baseMid:col(P.sky[1]), dummy:new THREE.Object3D()};
+  atmo = {storm, ice, group, inst, F, N, flash:0, next:rand(2, 5), baseHemi:P.hemi[2], baseMid:col(P.sky[1]), dummy:new THREE.Object3D()};
 }
 function atmoTick(dt){
   if (!atmo) return;
@@ -3636,7 +3950,7 @@ function atmoTick(dt){
       setTimeout(() => { noise(1.6, 300, 0.7); tone(60, 30, 1.4, 'sine', 0.4); }, 300 + Math.random()*500);
     }
     if (A.flash > 0){ A.flash = Math.max(0, A.flash - dt*3); hemi.intensity = A.baseHemi + A.flash*2.2; domeMat.uniforms.bright.value = 0.45 + A.flash*0.9; sky.material.uniforms.mid.value.copy(A.baseMid).lerp(col(0xc8d8ff), A.flash*0.6); }
-  } else if (Math.random() < 0.5){
+  } else if (!A.ice && Math.random() < 0.5){
     const ang = rand(0, Math.PI*2), r = rand(4, 22);
     sparks(new V3(Math.cos(ang)*r, 0.2, Math.sin(ang)*r), Math.random() < 0.5 ? 0xff7a2a : 0xffb040, 1, 1, 2.2, 0.35, 3.5);
   }
@@ -3701,6 +4015,7 @@ function loop(){
   }
   clearEdges();
   if (mapTick) mapTick(rdt);
+  petTick(rdt);
   atmoTick(rdt); lowHealthTick(rdt);
   if (blinkers.length){ const bt = performance.now()/1000; blinkers.forEach(b => { b.material.opacity = (Math.sin(bt*3 + b.userData.phase) > 0.3) ? 0.95 : 0.1; }); }
   if (state === 'menu') renderShowcase(rdt);

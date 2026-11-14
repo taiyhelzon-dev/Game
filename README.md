@@ -18,6 +18,9 @@ There are three ways to play:
   - **TYRANNOX, the Storm Dragon**: a flying dragon. Hit him in the air with special moves,
     punch him when he lands, knock him out of the sky with an ultimate, and run out of the
     blue circles before lightning strikes.
+  - **KING FLOE, the Seal Tyrant**: a giant seal king who belly-flops, spits ice spears and slides at you.
+    His **ICE DOMAIN: FEEDING FRENZY** fills the arena with ice and seals. Get into the gold circle before
+    they bite, or it's an instant one-shot! Beat him to watch a cutscene and unlock the **Seal Pup** buddy.
 
 | Key | What it does |
 |---|---|
