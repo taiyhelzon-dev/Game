@@ -58,3 +58,12 @@ In online games, the player who creates the game picks the map.
 ## Make it yours!
 Open `index.html` and find `THE HEROES`. Change the numbers (`speed`, `power`, `hp`)
 or the colors (like `suit:0x1fb5a8`) and reload the page to see what happens.
+
+## Real photos and textures
+The 360° photos behind each arena and the concrete floor come from [Poly Haven](https://polyhaven.com),
+which shares them under the CC0 license (free for anyone to use). They are in the `assets` folder:
+`sunset_jhbcentral` (Hero City), `shanghai_bund` (Tokyo), `spiaggia_di_mondello` (Los Angeles),
+`snowy_hillside` (Snowy Mountain), `blaubeuren_church_square` (Christmas Village) and `concrete_floor_worn_001` (arena floor).
+
+Tip: the photos only load when the game is opened from a web address (like the claude.ai link or GitHub Pages).
+If you open `index.html` straight from your computer, the game uses its drawn backgrounds instead.
