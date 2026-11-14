@@ -239,10 +239,6 @@ a.alt{color:var(--ink);text-decoration:none;font-family:var(--display);letter-sp
     <div class="row-label" id="mapLabel">Pick a map</div>
     <div class="modes" id="mapCards" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
     <p class="howto" id="mapNote" hidden>Your friend picks the map.</p>
-    <div id="petWrap" hidden>
-      <div class="row-label">Your buddy</div>
-      <div class="chips" id="petChips" style="margin-top:10px"></div>
-    </div>
     <div>
       <div class="row-label">Graphics</div>
       <div class="chips" id="gfxChips" style="margin-top:10px"></div>
@@ -459,11 +455,18 @@ const HEROES = {
     suit:0x1c6fd1, trim:0xf2f2f2, accent:0x2ee6c8, skin:0xe8b48c, hair:0x4a2a14, hairStyle:'ponytail', eyes:0x2a8a7a, lips:0xc27a6a, boot:0xf2f2f2,
     design:'water', female:true, size:0.98, bulk:0.9, speed:7.9, power:1.0, hp:100,
     special:'Water Jet', sp:'jet', ultimate:'Tidal Wave', ul:'tidal'
+  },
+  kingfloe: {
+    id:'kingfloe', line:"You beat me once. Let's see you do it again!", name:'KING FLOE', title:'The Seal King (unlocked)', css:'#7ad0ff',
+    blurb:'You beat him, so now he fights for you! Slippery, tough and icy, but weaker than the boss.',
+    model:'seal', locked:true, suit:0x9aaabb, trim:0xd0d4da, accent:0xffc93a, skin:0x9aaabb, hair:0x9aaabb, eyes:0x0c1014, lips:0x0c1014, boot:0x9aaabb,
+    size:1.1, bulk:1.15, speed:6.9, power:1.1, hp:115,
+    special:'Ice Spit', sp:'icespit', ultimate:'Ice Domain', ul:'domain'
   }
 };
 // How far away each move works (the computer uses this to decide when to use them)
-const SP_RANGE = {dash:[0,9], air:[4,16], fireball:[4,16], ice:[4,16], vine:[2,7], pull:[4,11], beam:[3,11], teleport:[3,12], rock:[4,16], jet:[3,16]};
-const UL_RANGE = {quake:6.5, crash:9, nova:6.5, blizzard:6.5, garden:14, meteor:16, burst:7.5, storm:9, quakeline:12, tidal:13};
+const SP_RANGE = {dash:[0,9], air:[4,16], fireball:[4,16], ice:[4,16], vine:[2,7], pull:[4,11], beam:[3,11], teleport:[3,12], rock:[4,16], jet:[3,16], icespit:[3,14]};
+const UL_RANGE = {quake:6.5, crash:9, nova:6.5, blizzard:6.5, garden:14, meteor:16, burst:7.5, storm:9, quakeline:12, tidal:13, domain:40};
 const DIFFS = {
   easy:   {label:'EASY',   react:0.75, special:0.25, dodge:0.04, block:0.08, dmg:0.65},
   normal: {label:'NORMAL', react:0.45, special:0.45, dodge:0.16, block:0.25, dmg:0.9},
@@ -1376,6 +1379,7 @@ function part(geo, m, x=0, y=0, z=0){ const me = new THREE.Mesh(geo, m); me.posi
 function seeded(seed){ let s = seed; return () => (s = (s*16807) % 2147483647) / 2147483647; }
 
 function buildModel(def){
+  if (def.model === 'seal') return buildSealFighter(def);
   const S = def.size, B = def.bulk, D = 0.64*Math.sqrt(B), mats = [];
   const M = (c, r, mt, extra) => {
     const m = new THREE.MeshStandardMaterial(Object.assign({color:col(c), roughness:r, metalness:mt, envMapIntensity:0.7}, extra || {}));
@@ -1647,12 +1651,13 @@ function beam(a, b, color, r=0.05, life=0.25){
   temp(m, life, (mm, k) => { mm.material.opacity = 1 - k; mm.scale.x = mm.scale.z = 1 + k; });
 }
 function smoke(pos, color){ dust(pos, 10, 0.7, 1.3, 0.6, color); sparks(pos, color, 8, 4, 0.3, 0.4, 0.5); }
-function clearTemps(){ temps.forEach(o => { scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); }); temps.length = 0; }
+function disposeTemp(o){ scene.remove(o.m); if (o.m.geometry) o.m.geometry.dispose(); if (o.m.material) o.m.material.dispose(); }
+function clearTemps(){ temps.forEach(disposeTemp); temps.length = 0; }
 function updateFx(dt){
   for (let i=temps.length-1;i>=0;i--){
     const o = temps[i]; o.t += dt; const k = Math.min(1, o.t/o.life);
     if (o.upd) o.upd(o.m, k, dt);
-    if (k >= 1){ scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); temps.splice(i, 1); }
+    if (k >= 1){ disposeTemp(o); temps.splice(i, 1); }
   }
   for (const s of sprites){
     if (!s.alive) continue;
@@ -1723,7 +1728,6 @@ function showCombo(i){
   el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
 }
 function comboHit(i){
-  if (i === 0 && pet) pet.cheer = 0.6;
   const c = combos[i];
   c.n++; c.t = 1.5; c.best = Math.max(c.best, c.n);
   if ([5, 8, 12, 15].includes(c.n)) sfx.bell();
@@ -1773,7 +1777,7 @@ class Fighter {
     this.cur = {}; POSE_KEYS.forEach(k => this.cur[k] = 0);
     this.reset(0, 0);
   }
-  dispose(){ scene.remove(this.m.root); }
+  dispose(){ if (this.action && this.action.dom) clearMiniDomain(this.action.dom); scene.remove(this.m.root); }
   reset(x, z){
     this.pos.set(x, 0, z); this.tgt.set(x, 0, z); this.kb.set(0,0,0); this.vy = 0; this.onGround = true; this.airT = 0; this.wasAir = false;
     this.maxHp = this.def.hp; this.hp = this.maxHp; this.meter = 0;
@@ -1781,6 +1785,7 @@ class Fighter {
     this.stun = 0; this.inv = 0; this.dashT = 0; this.dashCd = 0; this.specCd = 0; this.kd = 0; this.kdWas = false;
     this.action = null; this.slam = false; this.ko = false; this.flash = 0; this.glow = 0; this.walkT = 0;
     this.moving = false; this.blocking = false; this.netMoving = false; this.frozen = 0; this.victory = false;
+    if (this.action && this.action.dom) clearMiniDomain(this.action.dom);
     this.cur.lie = 0; this.m.body.rotation.set(0,0,0); this.m.body.position.set(0,0,0);
     this.yaw = this.tgtYaw = z > 0 ? Math.PI : 0;
   }
@@ -1931,6 +1936,7 @@ class Fighter {
       this.kb.copy(flat).multiplyScalar(force);
       if (lift){ this.vy = lift; this.onGround = false; }
       if (lift >= 6) this.kd = 1.1;
+      if (this.action && this.action.dom) clearMiniDomain(this.action.dom);
       this.action = null; this.dashT = 0; this.atk = 0; this.slam = false; this.glow = 0; this.flash = 0.13;
       this.meter = Math.min(100, this.meter + 7); attacker.meter = Math.min(100, attacker.meter + (kind === 'huge' ? 0 : 11));
     }
@@ -1961,6 +1967,12 @@ class Fighter {
     } else if (sp === 'vine'){ this.action = {type:'whip', t:0.3, range:7, pull:true, dmg:9, color:0x6ac83a}; this.specCd = 2.2; sfx.swing(); }
     else if (sp === 'pull'){ this.action = {type:'whip', t:0.35, range:11, pull:true, dmg:6, color:0xa58bff, grav:true}; this.specCd = 2.6; sfx.wind(); }
     else if (sp === 'beam'){ this.action = {type:'whip', t:0.25, range:11, dmg:9, color:0xff6ad5, beam:true}; this.specCd = 1.8; sfx.zap(); }
+    else if (sp === 'icespit'){
+      this.action = {type:'throw', t:0.25}; this.specCd = 2.0; sfx.zap();
+      const base = Math.atan2(aim.x, aim.z);
+      for (let i=-1;i<=1;i++){ const a = base + i*0.18, d = new V3(Math.sin(a), aim.y, Math.cos(a)).normalize();
+        spawnProjectile(this, c.clone().addScaledVector(f, 0.8), d.multiplyScalar(24), {radius:0.5, dmg:6, force:5, lift:0, color:0x9fe8ff, kind:'big', size:0.4, spear:true, freeze:0.7}); }
+    }
     else if (sp === 'teleport'){
       this.action = {type:'tele', t:0.34, hit:false}; this.specCd = 2.8; this.inv = Math.max(this.inv, 0.2);
       smoke(this.center(), 0x6a3aa8);
@@ -2008,6 +2020,8 @@ class Fighter {
       this.action = {type:'storm', t:1.0, n:0, next:0.05, lock: tw.dist < 10}; this.glow = 1;
     } else if (ul === 'quakeline'){
       this.action = {type:'slam', t:0.55}; this.glow = 1; sfx.wind();
+    } else if (ul === 'domain'){
+      this.action = {type:'domain', t:3.4, dom:makeMiniDomain(foe)}; this.glow = 1; sfx.roar();
     } else if (ul === 'tidal'){
       this.action = {type:'throw', t:0.45}; this.glow = 0;
       const f = this.faceDir();
@@ -2139,6 +2153,22 @@ class Fighter {
         this.combo = a.n % 2; this.atk = this.atkDur = 0.16; this.hitDone = true;
       }
       if (a.n >= 5 && a.next <= 0){ a.t = 0; this.glow = 0; }
+    } else if (a.type === 'domain'){
+      const d = a.dom, tt = (d.t += dt), t = performance.now()/1000;
+      d.sheet.material.opacity = Math.min(0.85, tt*1.5); d.gold.material.opacity = 0.55 + 0.45*Math.sin(t*10);
+      d.holes.forEach((s, i) => {
+        if (tt < 2.5){ s.root.position.y = mix(-2.4, -0.3 + Math.sin(t*5 + i)*0.12, Math.min(1, tt/1.2)); s.root.lookAt(foe.pos.x, s.root.position.y, foe.pos.z); }
+        else if (tt < 3.0){ const k = (tt - 2.5)/0.5; s.root.position.lerpVectors(s.home, foe.pos.clone().setY(0.3), k*0.85); s.root.position.y = Math.sin(k*Math.PI)*2.2; s.jaw.rotation.x = 0.7; }
+        else s.root.position.y -= dt*6;
+      });
+      if (tt >= 2.5 && !d.bit){
+        d.bit = true; shake = Math.max(shake, 0.9);
+        for (let i=0;i<5;i++) later(i*0.05, () => noise(0.12, 2500, 0.5));
+        const safeNow = Math.hypot(foe.pos.x - d.safe.x, foe.pos.z - d.safe.z) < 3.0;
+        if (!safeNow) foe.takeHit(32*P, foe.pos.clone().sub(d.safe), 12, 7, this, 'huge');
+        else popText('SAFE!', foe.center(), '#ffd23f');
+      }
+      if (a.t <= 0.05){ clearMiniDomain(d); this.glow = 0; }
     } else if (a.type === 'slam'){
       if (Math.random() < 0.4) dust(this.pos.clone().setY(0.1), 1, 1.5, 1, 0.6);
       if (a.t <= 0){
@@ -2195,7 +2225,7 @@ class Fighter {
       else if (a.type === 'air'){ Object.assign(T, {sRx:-2.9, eR:-0.3, sLx:-2.9, eL:-0.3, sLz:0.2, sRz:-0.2, twist:0, hipYaw:0}); }
       else if (a.type === 'whip' || a.type === 'tele'){ Object.assign(T, {sRx:-1.6, eR:-0.05, sRz:-0.1, twist:-0.5, lean:0.25}); }
       else if (a.type === 'blizzard' || a.type === 'burst'){ Object.assign(T, {sLz:-1.5, sRz:1.5, sLx:0, sRx:0, eL:-0.2, eR:-0.2, hL:-0.3, hR:0.3, kL:0.2, kR:0.2, twist:0, hipYaw:0, lean:-0.1, headX:-0.3}); }
-      else if (a.type === 'target'){ Object.assign(T, {sRx:-2.9, eR:-0.2, sLx:-2.9, eL:-0.2, sLz:0.15, sRz:-0.15, twist:0, hipYaw:0, headX:-0.3}); }
+      else if (a.type === 'target' || a.type === 'domain'){ Object.assign(T, {sRx:-2.9, eR:-0.2, sLx:-2.9, eL:-0.2, sLz:0.15, sRz:-0.15, twist:0, hipYaw:0, headX:-0.3}); }
       else if (a.type === 'slam'){
         if (a.t > 0.12) Object.assign(T, {sLx:-2.9, sRx:-2.9, eL:-0.4, eR:-0.4, twist:0, lean:-0.15, headX:-0.2});
         else Object.assign(T, {sLx:-1.0, sRx:-1.0, eL:-0.2, eR:-0.2, twist:0, lean:0.55, crouch:-0.22, kL:1.0, kR:1.0, hL:-0.7, hR:-0.7});
@@ -3111,24 +3141,80 @@ class SealBoss {
   animate(){}
 }
 
-/* ----- the Seal Pup buddy you win by beating KING FLOE ----- */
-let petUnlocked = false, petOn = true, pet = null;
-try { petUnlocked = localStorage.getItem('heroclash-pet') === 'seal'; petOn = localStorage.getItem('heroclash-pet-on') !== 'off'; } catch(e){}
-function petTick(dt){
-  const want = petUnlocked && petOn && player && !player.ghost;
-  if (want && !pet){ pet = {m:buildSeal(0.14, false), t:0, cheer:0}; scene.add(pet.m.root); pet.m.root.position.copy(player.pos).add(new V3(1.5, 0, -1)); }
-  if (!want && pet){ scene.remove(pet.m.root); pet = null; }
-  if (!pet) return;
-  const p = pet.m.root, f = player.faceDir(), side = new V3(f.z, 0, -f.x);
-  const goal = player.pos.clone().addScaledVector(side, 1.4).addScaledVector(f, -1.2).setY(0);
-  const d = goal.clone().sub(p.position); d.y = 0; const dist = d.length();
-  pet.t += dt; pet.cheer = Math.max(0, pet.cheer - dt);
-  if (dist > 0.15){ p.position.addScaledVector(d.normalize(), Math.min(dist, dt*Math.max(3, dist*3))); p.rotation.y = Math.atan2(d.x, d.z); }
-  else p.rotation.y = Math.atan2(f.x, f.z);
-  const moving = dist > 0.3;
-  p.position.y = (moving ? Math.abs(Math.sin(pet.t*12))*0.12 : 0) + (pet.cheer > 0 ? Math.abs(Math.sin(pet.t*14))*0.45 : 0);
-  pet.m.flippers.forEach((fl, i) => { fl.rotation.z = (i ? 1 : -1)*(pet.cheer > 0 ? Math.sin(pet.t*20)*0.9 : moving ? Math.sin(pet.t*12)*0.5 : 0.05); });
-  pet.m.front.rotation.x = pet.cheer > 0 ? -0.5 : -0.15;
+/* ----- KING FLOE as a playable fighter (you unlock him by beating the boss) ----- */
+let floeUnlocked = false;
+try { floeUnlocked = localStorage.getItem('heroclash-unlock-kingfloe') === '1'; } catch(e){}
+const isUnlocked = id => id !== 'kingfloe' || floeUnlocked;
+// An upright seal built on the same skeleton as the other heroes, so he can walk, punch and block
+function buildSealFighter(def){
+  const S = def.size, mats = [];
+  const M = (c, r, mt, extra) => { const m = new THREE.MeshStandardMaterial(Object.assign({color:col(c), roughness:r, metalness:mt}, extra || {})); m.userData.be = new THREE.Color(0, 0, 0); mats.push(m); return m; };
+  const skin = M(0x9aaabb, 0.3, 0.05, {map:sealSkinTex}), belly = M(0xd0d4da, 0.4, 0), gloss = M(0x0c1014, 0.08, 0.2), white = M(0xf2efe6, 0.3, 0);
+  const acc = M(0xffc93a, 0.2, 0.9), ice = M(0xbfefff, 0.05, 0, {emissive:col(0x4ad8ff), emissiveIntensity:0.35, transparent:true, opacity:0.85});
+  ice.userData.be = col(0x4ad8ff).multiplyScalar(0.35);
+  const Sp = new THREE.SphereGeometry(1, 24, 18);
+  const mk = (mat, x, y, z, sx, sy, sz) => { const m = new THREE.Mesh(Sp, mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.castShadow = true; m.receiveShadow = true; return m; };
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body); body.scale.setScalar(S);
+  const hips = new THREE.Group(); hips.position.y = 1.0; body.add(hips);
+  hips.add(mk(skin, 0, -0.45, 0, 0.56, 0.62, 0.5)); hips.add(mk(belly, 0, -0.42, 0.22, 0.46, 0.55, 0.3));
+  const spine = new THREE.Group(); hips.add(spine);
+  spine.add(mk(skin, 0, 0.3, 0, 0.5, 0.62, 0.44)); spine.add(mk(belly, 0, 0.3, 0.18, 0.4, 0.52, 0.3));
+  spine.add(mk(skin, 0, 0.82, 0, 0.36, 0.3, 0.34));
+  for (let k=0;k<4;k++){ const sp = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 6), ice); sp.position.set(0, 0.7 - k*0.22, -0.38); sp.rotation.x = -0.5; spine.add(sp); }
+  const head = new THREE.Group(); head.position.y = 1.05; spine.add(head);
+  head.add(mk(skin, 0, 0, 0, 0.36, 0.32, 0.38)); head.add(mk(belly, 0, -0.08, 0.3, 0.22, 0.17, 0.22)); head.add(mk(gloss, 0, -0.02, 0.5, 0.07, 0.05, 0.05));
+  const eyes = [];
+  [-1, 1].forEach(s => {
+    const eg = new THREE.Group(); eg.position.set(s*0.15, 0.07, 0.28); head.add(eg); eyes.push(eg);
+    eg.add(mk(gloss, 0, 0, 0, 0.085, 0.09, 0.06)); eg.add(mk(white, -s*0.02, 0.03, 0.05, 0.02, 0.02, 0.01));
+    for (let k=0;k<3;k++){ const w = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.003, 0.3, 4), white); w.position.set(s*0.2, -0.1 + k*0.03, 0.42); w.rotation.z = s*(1.35 + k*0.12); head.add(w); }
+  });
+  for (let k=0;k<4;k++){ const t = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.07, 5), white); t.position.set(-0.06 + k*0.04, -0.2, 0.42); t.rotation.x = Math.PI; head.add(t); }
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.1, 18, 1, true), acc); band.position.y = 0.3; band.material.side = THREE.DoubleSide; head.add(band);
+  for (let k=0;k<5;k++){ const a = k/5*Math.PI*2, c = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 6), acc); c.position.set(Math.cos(a)*0.24, 0.42, Math.sin(a)*0.24); head.add(c); }
+  // flippers as arms
+  const sh = [], el = [], fs = [];
+  [-1, 1].forEach(s => {
+    const shoulder = new THREE.Group(); shoulder.position.set(s*0.45, 0.55, 0); spine.add(shoulder);
+    shoulder.add(mk(skin, 0, -0.2, 0, 0.12, 0.26, 0.09));
+    const elbow = new THREE.Group(); elbow.position.y = -0.42; shoulder.add(elbow);
+    elbow.add(mk(skin, 0, -0.2, 0, 0.15, 0.24, 0.06));
+    const fist = new THREE.Group(); fist.position.y = -0.4; elbow.add(fist);
+    sh.push(shoulder); el.push(elbow); fs.push(fist);
+  });
+  // tail flippers as feet (the body hides the legs)
+  const hp = [], kn = [], ft = [];
+  [-1, 1].forEach(s => {
+    const hip = new THREE.Group(); hip.position.set(s*0.18, 0, 0); hips.add(hip);
+    const knee = new THREE.Group(); knee.position.y = -0.47; hip.add(knee);
+    const foot = new THREE.Group(); foot.position.set(0, -0.47, 0.045); knee.add(foot);
+    const fl = mk(skin, s*0.05, -0.03, 0.08, 0.16, 0.05, 0.3); fl.rotation.y = s*0.35; foot.add(fl);
+    hp.push(hip); kn.push(knee); ft.push(foot);
+  });
+  return {root, body, spine, head, armL:sh[0], armR:sh[1], elbowL:el[0], elbowR:el[1], hipL:hp[0], hipR:hp[1], kneeL:kn[0], kneeR:kn[1], cape:null, mats, acc, eyes, halo:null, hips, fists:fs, feet:ft};
+}
+// A smaller Ice Domain the playable KING FLOE uses on his rival
+function makeMiniDomain(foe){
+  const group = new THREE.Group(); scene.add(group);
+  const sheet = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R + 1, 72), new THREE.MeshStandardMaterial({map:iceSheetTex, transparent:true, opacity:0, roughness:0.05, metalness:0.2, depthWrite:false}));
+  sheet.rotation.x = -Math.PI/2; sheet.position.y = 0.03; group.add(sheet);
+  let safe; for (let k=0;k<20;k++){ const a = rand(0, Math.PI*2), r = rand(6, 9); safe = foe.pos.clone().add(new V3(Math.cos(a)*r, 0, Math.sin(a)*r)).setY(0); if (Math.hypot(safe.x, safe.z) < ARENA_R - 4) break; }
+  if (Math.hypot(safe.x, safe.z) > ARENA_R - 4) safe.multiplyScalar((ARENA_R - 4)/Math.hypot(safe.x, safe.z));
+  const gold = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.0, 48), new THREE.MeshBasicMaterial({color:col(0xffd23f), transparent:true, side:THREE.DoubleSide, depthWrite:false, toneMapped:false}));
+  gold.rotation.x = -Math.PI/2; gold.position.copy(safe).setY(0.08); group.add(gold);
+  const holes = [], waterM = new THREE.MeshBasicMaterial({color:col(0x04121e)});
+  for (let i=0;i<8;i++){
+    const a = i/8*Math.PI*2, p = new V3(Math.cos(a)*16.5, 0, Math.sin(a)*16.5);
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), waterM); hole.rotation.x = -Math.PI/2; hole.position.copy(p).setY(0.05); group.add(hole);
+    const seal = buildSeal(0.26, false); seal.root.position.copy(p).setY(-2.4); seal.home = p.clone(); group.add(seal.root); holes.push(seal);
+  }
+  $('#domainFx').classList.add('on');
+  return {group, sheet, gold, safe, holes, t:0, bit:false};
+}
+function clearMiniDomain(d){
+  if (!d || d.gone) return; d.gone = true;
+  scene.remove(d.group); d.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material.map !== iceSheetTex && o.material.map !== sealSkinTex) o.material.dispose(); });
+  if (!(rival && rival.dom)) $('#domainFx').classList.remove('on');
 }
 
 /* ----- the reward cutscene after beating KING FLOE ----- */
@@ -3138,18 +3224,20 @@ function sealCutscene(){
   c.hidden = false; $('#cutBtn').hidden = true;
   line.textContent = 'CONGRATULATIONS!'; sub.textContent = `You beat the Seal Boss, ${boss.def.name}!`;
   fanfare(); winFocus = player;
-  later(1.6, () => {
-    // the giant seal turns into a tiny seal pup
-    const bp = boss.center(); boss.m.root.visible = false;
-    sparks(bp, 0xffd23f, 70, 14, 1.2, 0.7, 4); sparks(bp, 0x7ad0ff, 50, 12, 1.0, 0.6, 4); dust(boss.pos.clone().setY(0.5), 16, 3, 2.4, 1.4, 0xffffff); sfx.boom();
-    petUnlocked = true; petOn = true; try { localStorage.setItem('heroclash-pet', 'seal'); localStorage.setItem('heroclash-pet-on', 'on'); } catch(e){}
-    petTick(0); if (pet) pet.m.root.position.copy(boss.pos).setY(0);
+  floeUnlocked = true; try { localStorage.setItem('heroclash-unlock-kingfloe', '1'); } catch(e){}
+  later(1.8, () => {
+    // the giant seal king shrinks down to fighter size and gets back up
     line.textContent = 'Here is a little reward for you...'; sub.textContent = '';
+    const r = boss.m.root, start = r.scale.x;
+    boss.m.body.rotation.z = 0; boss.m.body.position.y = 0; boss.ko = false; boss.koT = 0; boss.phase = 'bow';
+    temp(new THREE.Object3D(), 1.6, (o, k) => { r.scale.setScalar(mix(start, 0.22, k*k*(3 - 2*k))); if (Math.random() < 0.6) sparks(boss.center(), Math.random() < 0.5 ? 0xffd23f : 0x7ad0ff, 3, 6, 0.6, 0.5, 2); });
+    sfx.boom();
   });
-  later(4.4, () => {
-    line.textContent = 'You unlocked: SEAL PUP!'; sub.textContent = 'Your new buddy follows you into every fight and cheers when you land hits.';
-    if (pet) pet.cheer = 2.5; fanfare();
-    for (let i=0;i<5;i++) later(i*0.3, () => sparks(player.center().add(new V3(rand(-2, 2), 2, rand(-2, 2))), [0xff6ad5, 0xffd23f, 0x7ad0ff][i % 3], 30, 10, 1.1, 0.6, 7));
+  later(4.6, () => {
+    line.textContent = 'You unlocked: KING FLOE!';
+    sub.textContent = 'He joins your team as a playable fighter (a little weaker than the boss). Pick him on the hero screen!';
+    fanfare();
+    for (let i=0;i<5;i++) later(i*0.3, () => sparks(boss.center().add(new V3(rand(-1.5, 1.5), 1.5, rand(-1.5, 1.5))), [0xff6ad5, 0xffd23f, 0x7ad0ff][i % 3], 30, 10, 1.1, 0.6, 7));
     $('#cutBtn').hidden = false;
   });
 }
@@ -3163,6 +3251,11 @@ class AI {
   think(dt, foe){
     const inp = {mx:0, mz:0}, f = this.f, D = this.d;
     if (f.stun > 0 || f.ko || foe.ko || f.kd > 0) return inp;
+    if (foe.action && foe.action.type === 'domain' && foe.action.dom){
+      const d = foe.action.dom.safe.clone().sub(f.pos).setY(0), len = d.length();
+      if (len > 1.0){ d.normalize(); inp.mx = d.x; inp.mz = d.z; if (len > 5 && Math.random() < dt*2) inp.dash = true; }
+      return inp;
+    }
     this.t -= dt; this.strafeT -= dt; this.jumpT -= dt; this.blockT -= dt;
     if (this.strafeT < 0){ this.strafe = Math.random() < 0.5 ? -1 : 1; this.strafeT = rand(1, 2.5); }
     const tw = f.toward(foe), dir = tw.dir, dist = tw.dist, side = new V3(dir.z, 0, -dir.x).multiplyScalar(this.strafe);
@@ -3425,6 +3518,7 @@ function buildMenu(){
   const you = $('#youCards'), riv = $('#rivalCards'), chips = $('#diffChips');
   you.innerHTML = riv.innerHTML = chips.innerHTML = '';
   Object.values(HEROES).forEach(h => {
+    if (!isUnlocked(h.id)) return;
     const a = document.createElement('button'); a.className = 'card' + (h.id === youId ? ' sel' : ''); a.style.setProperty('--c', h.css);
     a.innerHTML = cardHTML(h);
     a.onclick = () => { youId = h.id; if (rivalId === youId) rivalId = Object.keys(HEROES).find(k => k !== youId); buildMenu(); refreshPreview(); showcaseHero(h.id, mode === 'local2' ? 'PLAYER 1' : 'YOUR HERO'); };
@@ -3434,9 +3528,6 @@ function buildMenu(){
     b.innerHTML = cardHTML(h); b.onclick = () => { rivalId = h.id; buildMenu(); refreshPreview(); showcaseHero(h.id, mode === 'local2' ? 'PLAYER 2' : 'YOUR RIVAL'); };
     riv.appendChild(b);
   });
-  $('#petWrap').hidden = !petUnlocked;
-  const pc = $('#petChips'); pc.innerHTML = '';
-  [[true, 'SEAL PUP ON'], [false, 'OFF']].forEach(([v, l]) => { const c = document.createElement('button'); c.className = 'chip' + (petOn === v ? ' sel' : ''); c.textContent = l; c.onclick = () => { petOn = v; try { localStorage.setItem('heroclash-pet-on', v ? 'on' : 'off'); } catch(e){} buildMenu(); }; pc.appendChild(c); });
   const gc = $('#gfxChips'); gc.innerHTML = '';
   [['pretty', 'PRETTY'], ['fast', 'FAST (older devices)']].forEach(([k, l]) => {
     const c = document.createElement('button'); c.className = 'chip' + (k === gfx ? ' sel' : ''); c.textContent = l;
@@ -3793,7 +3884,7 @@ function showcaseHero(id, who){
   m.armL.rotation.set(-0.6, 0, -0.1); m.elbowL.rotation.x = -1.95; m.armR.rotation.set(-0.4, 0, 0.1); m.elbowR.rotation.x = -2.15;
   m.hipL.rotation.x = -0.32; m.kneeL.rotation.x = 0.5; m.hipR.rotation.x = 0.2; m.kneeR.rotation.x = 0.35; m.spine.rotation.set(0.08, 0.3, 0);
   sc.rim.color.copy(col(h.accent)); sc.ring.material.color.copy(col(h.accent));
-  sc.fit = h.size;
+  sc.fit = h.size*(h.model === "seal" ? 1.2 : 1);
 }
 function renderShowcase(dt){
   if (!sc.r || !sc.model || $('#menu').hidden || $('#showcase').hidden) return;
@@ -4015,7 +4106,6 @@ function loop(){
   }
   clearEdges();
   if (mapTick) mapTick(rdt);
-  petTick(rdt);
   atmoTick(rdt); lowHealthTick(rdt);
   if (blinkers.length){ const bt = performance.now()/1000; blinkers.forEach(b => { b.material.opacity = (Math.sin(bt*3 + b.userData.phase) > 0.3) ? 0.95 : 0.1; }); }
   if (state === 'menu') renderShowcase(rdt);

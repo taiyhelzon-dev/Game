@@ -20,7 +20,8 @@ There are three ways to play:
     blue circles before lightning strikes.
   - **KING FLOE, the Seal Tyrant**: a giant seal king who belly-flops, spits ice spears and slides at you.
     His **ICE DOMAIN: FEEDING FRENZY** fills the arena with ice and seals. Get into the gold circle before
-    they bite, or it's an instant one-shot! Beat him to watch a cutscene and unlock the **Seal Pup** buddy.
+    they bite, or it's an instant one-shot! Beat him to watch a cutscene and **unlock KING FLOE as a playable fighter**
+    (weaker than the boss), with Ice Spit and a smaller Ice Domain.
 
 | Key | What it does |
 |---|---|
