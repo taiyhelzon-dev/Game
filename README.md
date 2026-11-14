@@ -1,9 +1,33 @@
+# My Games
+
+This repo is my games website. The front page (`index.html`) shows my name and a
+card for each game. Press **PLAY** on a card to open that game.
+
+| Folder | What it is |
+|---|---|
+| `index.html` | The landing page with my name and the list of games |
+| `hero-clash/` | Hero Clash, a 3D superhero fighting game |
+| `.github/workflows/pages.yml` | The robot that publishes the website |
+
+## How the website updates itself
+Every time a change lands on the `main` branch, GitHub Actions runs `pages.yml`. It
+publishes the whole repo to GitHub Pages, which shows it at my own domain. You don't
+need to upload anything by hand. The website is updated a minute or two after a change.
+
+## Add a new game
+1. Make a new folder for it, like `my-new-game/`, with an `index.html` inside.
+2. Add a cover picture (`my-new-game/cover.jpg`, 16:9 works best).
+3. Open the landing page `index.html`, find `EDIT HERE`, and add an entry to `GAMES`.
+4. Change your name in the same place (`MY_NAME`).
+
+---
+
 # Hero Clash
 
 A 3D superhero fighting game that runs in your web browser.
 
 ## How to play
-Open `index.html` in a browser (Chrome, Safari or Edge).
+Open `hero-clash/index.html` in a browser (Chrome, Safari or Edge), or press PLAY on the website.
 
 There are three ways to play:
 - **VS Computer**: fight the computer (Easy, Normal or Hard).
@@ -60,7 +84,7 @@ In online games, the player who creates the game picks the map.
 | **Riptide** | Water | Water Jet | Tidal Wave |
 
 ## Make it yours!
-Open `index.html` and find `THE HEROES`. Change the numbers (`speed`, `power`, `hp`)
+Open `hero-clash/index.html` and find `THE HEROES`. Change the numbers (`speed`, `power`, `hp`)
 or the colors (like `suit:0x1fb5a8`) and reload the page to see what happens.
 
 ## Real photos and textures
@@ -70,4 +94,4 @@ which shares them under the CC0 license (free for anyone to use). They are in th
 `snowy_hillside` (Snowy Mountain), `blaubeuren_church_square` (Christmas Village) and `concrete_floor_worn_001` (arena floor).
 
 Tip: the photos only load when the game is opened from a web address (like the claude.ai link or GitHub Pages).
-If you open `index.html` straight from your computer, the game uses its drawn backgrounds instead.
+If you open `hero-clash/index.html` straight from your computer, the game uses its drawn backgrounds instead.

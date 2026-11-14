@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Games</title>
+<meta name="description" content="Games I made. Pick one and press PLAY!">
+<meta property="og:title" content="My Games">
+<meta property="og:description" content="Games I made. Pick one and press PLAY!">
+<meta property="og:image" content="hero-clash/cover.jpg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap">
+<style>
+:root{
+  --bg:#0d0b1a; --bg2:#171330; --card:#1d1838; --line:#2f2858;
+  --ink:#f6f3ff; --mute:#b4abd8; --gold:#ffd23f; --pink:#ff4fd8; --blue:#2ec4ff;
+  --display:'Bangers',Impact,system-ui,sans-serif; --body:'Nunito',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);min-height:100vh;
+  background-image:radial-gradient(1200px 600px at 15% -10%,#3a1f6e 0%,transparent 60%),radial-gradient(900px 500px at 100% 0%,#0f3b5e 0%,transparent 55%)}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+header.wrap{padding:64px 16px 36px;text-align:center}
+.hi{font-weight:800;color:var(--mute);letter-spacing:.2em;text-transform:uppercase;font-size:14px;margin:0 0 8px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(56px,12vw,120px);line-height:.9;margin:0;letter-spacing:.03em;
+  background:linear-gradient(180deg,#fff 0%,var(--gold) 55%,#ff8a3d 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 #6a1fb0) drop-shadow(0 10px 24px rgba(255,79,216,.35))}
+.tag{margin:16px auto 0;max-width:520px;color:var(--mute);font-size:18px}
+
+h2{font-family:var(--display);font-weight:400;font-size:40px;letter-spacing:.05em;margin:24px 0 18px;display:flex;align-items:center;gap:14px}
+h2::after{content:"";flex:1;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--pink),transparent)}
+
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px;padding-bottom:40px}
+.game{background:var(--card);border:2px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.game:hover{transform:translateY(-4px);border-color:var(--pink);box-shadow:0 14px 40px rgba(255,79,216,.25)}
+.shot{position:relative;aspect-ratio:16/9;background:#000 center/cover no-repeat;display:block}
+.shot .badge{position:absolute;top:12px;left:12px;background:var(--gold);color:#1a1030;font-weight:800;font-size:12px;letter-spacing:.08em;
+  padding:4px 10px;border-radius:999px;text-transform:uppercase}
+.body{padding:16px 18px 20px;display:flex;flex-direction:column;gap:10px;flex:1}
+.game h3{font-family:var(--display);font-weight:400;font-size:34px;letter-spacing:.04em;margin:0;line-height:1}
+.game p{margin:0;color:var(--mute);line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{font-size:12px;font-weight:800;color:var(--ink);background:var(--bg2);border:1px solid var(--line);padding:3px 9px;border-radius:999px}
+.play{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;
+  font-family:var(--display);font-size:30px;letter-spacing:.08em;color:#1a1030;padding:10px 18px;border-radius:12px;
+  background:linear-gradient(180deg,#ffe36a,var(--gold) 50%,#ffab1f);box-shadow:0 5px 0 #b86a00;transition:transform .08s,box-shadow .08s}
+.play:hover{filter:brightness(1.08)}
+.play:active{transform:translateY(4px);box-shadow:0 1px 0 #b86a00}
+.play:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+
+.soon{border-style:dashed;align-items:center;justify-content:center;text-align:center;min-height:300px;padding:24px}
+.soon:hover{transform:none;border-color:var(--line);box-shadow:none}
+.soon .q{font-family:var(--display);font-size:80px;line-height:1;color:var(--line)}
+.soon h3{color:var(--mute);margin:6px 0 4px}
+
+footer.wrap{border-top:1px solid var(--line);padding:22px 16px 40px;text-align:center;color:var(--mute);font-size:14px}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <p class="hi">Welcome to the arcade of</p>
+  <h1 id="myName">Your Name</h1>
+  <p class="tag">Games I made. Pick one and press <b>PLAY</b>!</p>
+</header>
+
+<main class="wrap">
+  <h2>My Games</h2>
+  <div class="games" id="games"></div>
+</main>
+
+<footer class="wrap">Made by <span id="footName">Your Name</span> · <span id="year"></span></footer>
+
+<script>
+/* =====================================================
+   EDIT HERE ✏️
+   MY_NAME  = the name shown at the top of the website.
+   GAMES    = one entry per game. To add a new game, put it
+              in its own folder (like "hero-clash/") and add
+              an entry to this list. The newest game goes first.
+   ===================================================== */
+const MY_NAME = 'Your Name';
+
+const GAMES = [
+  {
+    title: 'Hero Clash',
+    folder: 'hero-clash/',
+    cover: 'hero-clash/cover.jpg',
+    badge: 'New!',
+    about: 'A 3D superhero fighting game. Pick from 10 heroes, fight in real photo arenas, and take on giant bosses like TYRANNOX and KING FLOE.',
+    tags: ['3D', 'Fighting', '1–2 players', 'Story mode', 'Bosses'],
+  },
+];
+
+/* ---------- builds the page from the list above ---------- */
+document.getElementById('myName').textContent = MY_NAME;
+document.getElementById('footName').textContent = MY_NAME;
+document.getElementById('year').textContent = new Date().getFullYear();
+document.title = MY_NAME + "'s Games";
+
+const grid = document.getElementById('games');
+for (const g of GAMES) {
+  const card = document.createElement('article'); card.className = 'game';
+  const shot = document.createElement('a'); shot.className = 'shot'; shot.href = g.folder;
+  shot.style.backgroundImage = `url("${g.cover}")`; shot.setAttribute('aria-label', 'Play ' + g.title);
+  if (g.badge) { const b = document.createElement('span'); b.className = 'badge'; b.textContent = g.badge; shot.appendChild(b); }
+  const body = document.createElement('div'); body.className = 'body';
+  const h = document.createElement('h3'); h.textContent = g.title;
+  const p = document.createElement('p'); p.textContent = g.about;
+  const chips = document.createElement('div'); chips.className = 'chips';
+  for (const t of g.tags || []) { const s = document.createElement('span'); s.textContent = t; chips.appendChild(s); }
+  const play = document.createElement('a'); play.className = 'play'; play.href = g.folder; play.textContent = '▶ PLAY';
+  body.append(h, p, chips, play); card.append(shot, body); grid.appendChild(card);
+}
+const soon = document.createElement('article'); soon.className = 'game soon';
+soon.innerHTML = '<div class="q">?</div><h3>More games coming soon…</h3><p>Stay tuned!</p>';
+grid.appendChild(soon);
+</script>
+</body>
+</html>
