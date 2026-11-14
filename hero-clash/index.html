@@ -1146,23 +1146,25 @@ function buildXmas(g){
    ========================================================= */
 let PHOTO = false;
 const photoTex = {}, photoFailed = {}, PHOTO_H = 6, PHOTO_R = 140;
-const domeGeo = new THREE.SphereGeometry(PHOTO_R, 96, 64);
-(() => {
-  const pos = domeGeo.attributes.position, dirs = new Float32Array(pos.count*3);
-  for (let i=0;i<pos.count;i++){
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), len = Math.hypot(x, y, z);
-    dirs[i*3] = x/len; dirs[i*3+1] = y/len; dirs[i*3+2] = z/len;
-    if (y + PHOTO_H < 0){ const t = (PHOTO_H + 0.06)/(-y); pos.setXYZ(i, x*t, -(PHOTO_H + 0.06), z*t); }
-  }
-  domeGeo.setAttribute('dir', new THREE.BufferAttribute(dirs, 3));
-})();
+// For every pixel we follow the camera's view ray. Above the horizon the photo is treated
+// as infinitely far away (like a real sky), so buildings and the horizon stay straight
+// wherever the camera goes. Below the horizon the ray hits the flat ground, and that spot
+// is looked up in the photo as if seen from where the photo was taken.
+const domeGeo = new THREE.SphereGeometry(PHOTO_R, 48, 32);
 const domeMat = new THREE.ShaderMaterial({
-  side:THREE.BackSide, depthWrite:false, fog:false,
-  uniforms:{map:{value:null}, rot:{value:0}, bright:{value:1}, tint:{value:new THREE.Color(1, 1, 1)}},
-  vertexShader:'attribute vec3 dir; varying vec3 vD; void main(){ vD = dir; gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }',
-  fragmentShader:'uniform sampler2D map; uniform float rot; uniform float bright; uniform vec3 tint; varying vec3 vD; void main(){ vec3 d = normalize(vD); float u = atan(d.z, d.x)/6.2831853 + 0.5 + rot; float v = asin(clamp(d.y, -1.0, 1.0))/3.14159265 + 0.5; gl_FragColor = vec4(texture2D(map, vec2(fract(u), v)).rgb*bright*tint, 1.0); }'
+  side:THREE.BackSide, depthWrite:false, depthTest:false, fog:false,
+  uniforms:{map:{value:null}, rot:{value:0}, bright:{value:1}, tint:{value:new THREE.Color(1, 1, 1)}, H:{value:PHOTO_H}},
+  vertexShader:'varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }',
+  fragmentShader:`uniform sampler2D map; uniform float rot; uniform float bright; uniform float H; uniform vec3 tint; varying vec3 vW;
+    void main(){
+      vec3 d = normalize(vW - cameraPosition), s = d;
+      if (d.y < 0.0){ float t = max(cameraPosition.y, 0.05)/max(-d.y, 1e-5); vec3 P = cameraPosition + d*t; s = normalize(P - vec3(0.0, H, 0.0)); }
+      float u = atan(s.z, s.x)/6.2831853 + 0.5 + rot; float v = asin(clamp(s.y, -1.0, 1.0))/3.14159265 + 0.5;
+      gl_FragColor = vec4(texture2D(map, vec2(fract(u), v)).rgb*bright*tint, 1.0); }`
 });
-const dome = new THREE.Mesh(domeGeo, domeMat); dome.position.y = PHOTO_H; dome.renderOrder = -1; dome.frustumCulled = false; dome.visible = false; scene.add(dome);
+// the dome follows the camera so it always surrounds it
+const dome = new THREE.Mesh(domeGeo, domeMat); dome.renderOrder = -1; dome.frustumCulled = false; dome.visible = false; scene.add(dome);
+dome.onBeforeRender = (r, sc, cam) => { dome.position.copy(cam.position); dome.updateMatrixWorld(); };
 const texLoader = new THREE.TextureLoader();
 function showPhoto(id){
   const t = photoTex[id]; if (!t || mapId !== id || !PHOTO) return;
