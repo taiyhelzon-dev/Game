@@ -593,9 +593,10 @@ const floor = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R+1, 72), new THREE.
 floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
 const curbIn = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R+1, ARENA_R+1, 0.45, 72, 1, true), new THREE.MeshStandardMaterial({color:col(0xa8acb4), roughness:0.92, side:THREE.DoubleSide}));
 curbIn.position.y = 0.2; curbIn.receiveShadow = true; scene.add(curbIn);
-const curbOut = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R+1.7, ARENA_R+1.7, 0.45, 72, 1, true), concrete);
+const curbMat = new THREE.MeshStandardMaterial({color:col(0xa8acb4), roughness:0.92}), curbTopMat = curbMat.clone();
+const curbOut = new THREE.Mesh(new THREE.CylinderGeometry(ARENA_R+1.7, ARENA_R+1.7, 0.45, 72, 1, true), curbMat);
 curbOut.position.y = 0.2; scene.add(curbOut);
-const curbTop = new THREE.Mesh(new THREE.RingGeometry(ARENA_R+1, ARENA_R+1.7, 72), concrete);
+const curbTop = new THREE.Mesh(new THREE.RingGeometry(ARENA_R+1, ARENA_R+1.7, 72), curbTopMat);
 curbTop.rotation.x = -Math.PI/2; curbTop.position.y = 0.42; curbTop.receiveShadow = true; scene.add(curbTop);
 const led = new THREE.Mesh(new THREE.TorusGeometry(ARENA_R+1.02, 0.05, 6, 120), new THREE.MeshBasicMaterial({color:col(0xff3b5c)}));
 led.rotation.x = Math.PI/2; led.position.y = 0.3; scene.add(led);
@@ -1169,6 +1170,7 @@ const texLoader = new THREE.TextureLoader();
 function showPhoto(id){
   const t = photoTex[id]; if (!t || mapId !== id || !PHOTO) return;
   domeMat.uniforms.map.value = t; dome.visible = true; sky.visible = false; ground.visible = false;
+  if (typeof applyFloor === 'function') applyFloor(id);
 }
 function loadPhoto(id, then){
   const M = MAPS[id]; if (!M || !M.photo || photoTex[id] || photoFailed[id]) { if (then) then(); return; }
@@ -1190,15 +1192,75 @@ const marksTex = canvasTex(1024, 1024, (g, w) => {
   g.globalCompositeOperation = 'source-over';
 });
 const marks = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R + 1, 72), new THREE.MeshStandardMaterial({map:marksTex, transparent:true, roughness:0.6, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2}));
-marks.rotation.x = -Math.PI/2; marks.position.y = 0.004; marks.receiveShadow = true; marks.visible = false; scene.add(marks);
+marks.rotation.x = -Math.PI/2; marks.position.y = 0.004; marks.receiveShadow = true; scene.add(marks);
+// The curb around the arena uses the scanned worn concrete
 (() => {
-  const setRep = t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(5, 5); t.anisotropy = 8; return t; };
+  const setRep = t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(24, 1); t.anisotropy = 8; return t; };
   texLoader.load('assets/concrete_diff.jpg', t => {
-    t.encoding = THREE.sRGBEncoding; floor.material.map = setRep(t); floor.material.roughness = 1; floor.material.needsUpdate = true; marks.visible = true;
-    texLoader.load('assets/concrete_nor_gl.jpg', n => { floor.material.normalMap = setRep(n); floor.material.normalScale.set(1.2, 1.2); floor.material.needsUpdate = true; });
-    texLoader.load('assets/concrete_rough.jpg', r => { floor.material.roughnessMap = setRep(r); floor.material.needsUpdate = true; });
+    t.encoding = THREE.sRGBEncoding; setRep(t); const top = t.clone(); top.repeat.set(10, 10); top.needsUpdate = true;
+    [curbMat, curbIn.material].forEach(m => { m.map = t; m.color.setRGB(0.9, 0.9, 0.9); m.needsUpdate = true; });
+    curbTopMat.map = top; curbTopMat.color.setRGB(0.9, 0.9, 0.9); curbTopMat.needsUpdate = true;
+    texLoader.load('assets/concrete_nor_gl.jpg', n => { setRep(n); const nt = n.clone(); nt.repeat.set(10, 10); nt.needsUpdate = true;
+      [curbMat, curbIn.material].forEach(m => { m.normalMap = n; m.needsUpdate = true; }); curbTopMat.normalMap = nt; curbTopMat.needsUpdate = true; });
   });
 })();
+/* Real scanned ground for each map (CC0, Poly Haven): color, bumps (normal map), and
+   "arm" = shadows in the cracks (ambient occlusion) + how rough or shiny each spot is.
+   size = how many meters one copy of the photo covers in real life. */
+const FLOORS = {
+  city:  {size:1.8, rough:1.0,  env:0.18, normal:1.3, marks:0.85, tint:0xc4c8cf, grime:0.75},  // rooftop concrete slabs
+  tokyo: {size:3.0, rough:0.28, env:0.8,  normal:0.7, marks:0.7, tint:0x6a6e78, grime:0.45},  // wet stone tiles that reflect the neon
+  la:    {size:6.0, rough:1.0,  env:0.15, normal:1.4, marks:0.4, grime:0.12},   // beach sand
+  snow:  {size:2.0, rough:0.95, env:0.35, normal:1.0, marks:0.45, grime:0.1},  // packed snow
+  xmas:  {size:2.0, rough:0.85, env:0.45, normal:1.3, marks:0.5, grime:0.35}    // old cobblestones
+};
+floor.geometry.setAttribute('uv2', floor.geometry.attributes.uv);
+const floorTexs = {}, floorEnvs = {};
+let pmrem = null;
+function floorEnv(id){
+  if (floorEnvs[id] !== undefined) return floorEnvs[id];
+  const t = photoTex[id]; if (!t) return null;
+  try { if (!pmrem) pmrem = new THREE.PMREMGenerator(renderer); t.encoding = THREE.sRGBEncoding; floorEnvs[id] = pmrem.fromEquirectangular(t).texture; }
+  catch(e){ floorEnvs[id] = null; }
+  return floorEnvs[id];
+}
+function applyFloor(id){
+  const F = FLOORS[id], T = floorTexs[id], m = floor.material; if (!F || mapId !== id) return;
+  marks.material.opacity = F.marks; marks.visible = !!(T && T.ready); grime.material.opacity = F.grime || 0; grime.visible = marks.visible;
+  if (!T || !T.ready){ m.map = floorTex; m.normalMap = m.roughnessMap = m.aoMap = null; m.envMap = null; m.roughness = 0.85; m.color.copy(col(MAPS[id].floorTint || 0xffffff)); m.needsUpdate = true; return; }
+  m.map = T.diff; m.normalMap = T.nor; m.roughnessMap = T.arm; m.aoMap = T.arm; m.aoMapIntensity = 1;
+  m.normalScale.set(F.normal, F.normal); m.roughness = F.rough; m.metalness = 0; m.color.copy(col(F.tint || 0xffffff));
+  m.envMap = PHOTO ? floorEnv(id) : null; m.envMapIntensity = F.env; m.needsUpdate = true;
+}
+function loadFloor(id){
+  if (!FLOORS[id] || floorTexs[id]) { applyFloor(id); return; }
+  const T = floorTexs[id] = {}, rep = 2*(ARENA_R + 1)/FLOORS[id].size; let left = 3;
+  const done = () => { if (--left === 0){ T.ready = true; applyFloor(id); } };
+  const prep = (t, srgb) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); if (srgb) t.encoding = THREE.sRGBEncoding; return t; };
+  ['diff', 'nor', 'arm'].forEach(k => texLoader.load(`assets/floor_${id}_${k}.jpg`, t => { T[k] = prep(t, k === 'diff'); done(); }, undefined, () => { delete floorTexs[id]; }));
+  applyFloor(id);
+}
+// soft shading where the floor meets the curb, like real ambient shadow in a corner
+const edgeShadeTex = canvasTex(512, 512, (g, w) => {
+  const c = w/2, gr = g.createRadialGradient(c, c, c*0.82, c, c, c);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.75, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0.55)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, w);
+});
+// big soft stains, water marks and a few cracks, so the floor isn't the same everywhere
+const grimeTex = canvasTex(1024, 1024, (g, w) => {
+  for (let i=0;i<55;i++){ const x = rand(0, w), y = rand(0, w), r = rand(30, 150), gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(20,16,12,${rand(0.15, 0.4)})`); gr.addColorStop(1, 'rgba(20,16,12,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r*2, r*2); }
+  for (let i=0;i<14;i++){ const x = rand(0, w), y = rand(0, w), r = rand(40, 110), gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,250,240,0.12)'); gr.addColorStop(1, 'rgba(255,250,240,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r*2, r*2); }
+  g.strokeStyle = 'rgba(10,8,6,0.55)'; g.lineCap = 'round';
+  for (let i=0;i<9;i++){ let x = rand(0, w), y = rand(0, w), a = rand(0, 6.3); g.lineWidth = rand(1, 2.4); g.beginPath(); g.moveTo(x, y);
+    for (let k=0;k<rand(6, 14);k++){ a += rand(-0.6, 0.6); x += Math.cos(a)*rand(8, 22); y += Math.sin(a)*rand(8, 22); g.lineTo(x, y);
+      if (Math.random() < 0.2){ g.moveTo(x, y); } } g.stroke(); }
+});
+const grime = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R + 1, 72), new THREE.MeshStandardMaterial({map:grimeTex, transparent:true, depthWrite:false, roughness:1, polygonOffset:true, polygonOffsetFactor:-1}));
+grime.rotation.x = -Math.PI/2; grime.position.y = 0.003; grime.receiveShadow = true; grime.visible = false; scene.add(grime);
+const edgeShade = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R + 1, 72), new THREE.MeshBasicMaterial({map:edgeShadeTex, transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-3}));
+edgeShade.rotation.x = -Math.PI/2; edgeShade.position.y = 0.006; scene.add(edgeShade);
 
 const MAPS = {
   city:  {label:'HERO CITY', sub:'Sunset downtown', swatch:'linear-gradient(#1c2766,#f2876a 75%,#5a5560)',
@@ -1231,11 +1293,11 @@ function setMap(id){
   renderer.toneMappingExposure = M.exposure;
   ground.material.map = groundTex[M.ground]; ground.material.roughness = M.ground === 'wet' ? 0.5 : 0.95; ground.material.needsUpdate = true;
   led.material.color.copy(col(M.led));
-  floor.material.color.copy(col(M.floorTint || 0xffffff));
   PHOTO = !!M.photo && !photoFailed[id];
   dome.visible = false; sky.visible = true; ground.visible = true; domeMat.uniforms.tint.value.setRGB(1, 1, 1); domeMat.uniforms.bright.value = 1;
   if (PHOTO){ domeMat.uniforms.rot.value = M.photoRot || 0; scene.fog.near = 150; scene.fog.far = 500; if (photoTex[id]) showPhoto(id); else loadPhoto(id); }
   mapGroup = new THREE.Group(); scene.add(mapGroup); M.build(mapGroup);
+  loadFloor(id);
 }
 setMap('city');
 setTimeout(preloadPhotos, 1500);

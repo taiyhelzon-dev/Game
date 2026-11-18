@@ -91,7 +91,12 @@ or the colors (like `suit:0x1fb5a8`) and reload the page to see what happens.
 The 360° photos behind each arena and the concrete floor come from [Poly Haven](https://polyhaven.com),
 which shares them under the CC0 license (free for anyone to use). They are in the `assets` folder:
 `sunset_jhbcentral` (Hero City), `shanghai_bund` (Tokyo), `spiaggia_di_mondello` (Los Angeles),
-`snowy_hillside` (Snowy Mountain), `blaubeuren_church_square` (Christmas Village) and `concrete_floor_worn_001` (arena floor).
+`snowy_hillside` (Snowy Mountain), `blaubeuren_church_square` (Christmas Village) and `concrete_floor_worn_001` (the arena curb).
+
+Each arena floor is a real scanned surface that matches its place, with bumps, shadows in the cracks and
+shiny or rough spots: `concrete_pavement` (Hero City rooftop), `large_grey_tiles` (Tokyo, made wet so it
+reflects the lights), `coast_sand_01` (Los Angeles beach), `snow_02` (Snowy Mountain) and
+`cobblestone_floor_08` (Christmas Village).
 
 Tip: the photos only load when the game is opened from a web address (like the claude.ai link or GitHub Pages).
 If you open `hero-clash/index.html` straight from your computer, the game uses its drawn backgrounds instead.
