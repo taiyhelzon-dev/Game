@@ -27,7 +27,7 @@ jobs:
       - name: Collect the website files
         run: |
           mkdir _site
-          rsync -a --exclude '.git' --exclude '.github' --exclude '_site' --exclude 'README.md' ./ _site/
+          rsync -a --exclude '.git' --exclude '.github' --exclude '_site' --exclude 'README.md' --exclude 'tools' ./ _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

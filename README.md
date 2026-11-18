@@ -70,6 +70,12 @@ On a phone or tablet, use the on-screen joystick and buttons.
 In online games, the player who creates the game picks the map.
 
 ## The heroes
+Every hero is a real human body. The bodies come from [MakeHuman](http://www.makehumancommunity.org),
+whose base body, skeleton, body-shape targets and eyes are shared under the CC0 license (free for anyone
+to use). Each hero has their own body type (strong, huge, athletic, slim) and face, and their suit, gloves,
+belt, skin, lips, eyebrows and beard are painted right onto the body when the game starts. The bodies are
+built ahead of time by `tools/human-build/build.js` into `hero-clash/assets/human.json`.
+
 | Hero | Power | Special | Ultimate |
 |---|---|---|---|
 | **Volt** | Lightning | Lightning Dash | Thunder Quake |
