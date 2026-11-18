@@ -445,7 +445,7 @@ const HEROES = {
   boulder: {
     id:'boulder', line:'Go ahead. Punch the rock. See what happens.', name:'BOULDER', title:'The Rock Wall', css:'#e0a060',
     blurb:'Huge and tough as stone. Really hard to knock down.',
-    suit:0x3e342e, trim:0x6a6e76, accent:0xff9a3a, skin:0xa86e48, hair:0x2a1c14, hairStyle:'bald', eyes:0x5a3a1a, lips:0x7a4434, boot:0x6a6e76,
+    suit:0x33373d, trim:0x7a7e86, accent:0xff9a3a, skin:0xa86e48, hair:0x2a1c14, hairStyle:'bald', eyes:0x5a3a1a, lips:0x7a4434, boot:0x6a6e76,
     design:'cracks', pecs:true, trimShoulders:true, rockArmor:true, size:1.3, bulk:1.4, speed:5.6, power:1.4, hp:135,
     special:'Rock Throw', sp:'rock', ultimate:'Earthquake', ul:'quakeline'
   },
@@ -1664,7 +1664,7 @@ function buildHumanModel(def, H){
   if (def.cape){
     let backZ = 0; for (let i=0;i<H.pos.length;i+=3){ const x = H.pos[i], y = H.pos[i+1], z = H.pos[i+2]; if (Math.abs(x) < 0.05 && Math.abs(y - (J.armL[1] - 0.05)) < 0.03) backZ = Math.min(backZ, z); }
     const w = Math.abs(J.armR[0] - J.armL[0]) + 0.02, cg2 = new THREE.PlaneGeometry(w, 0.95, 10, 10); cg2.translate(0, -0.475, 0);
-    { const cp = cg2.attributes.position; for (let i=0;i<cp.count;i++){ const x = cp.getX(i)/(w/2), y = -cp.getY(i)/0.95; cp.setZ(i, x*x*0.1*(1 - y*0.6)); cp.setX(i, cp.getX(i)*(1 + y*0.25)); } }
+    { const cp = cg2.attributes.position; for (let i=0;i<cp.count;i++){ const x = cp.getX(i)/(w/2), y = -cp.getY(i)/0.95; cp.setZ(i, x*x*0.1*(1 - y*0.6) - y*y*0.12 + Math.sin(x*9.4)*0.022*y); cp.setX(i, cp.getX(i)*(1 + y*0.3)); } }
     const cmat = M(def.cape, 0.75, 0, {bumpMap:fabricBump, bumpScale:0.002}); cmat.side = THREE.DoubleSide;
     cape = new THREE.Mesh(cg2, cmat); cape.castShadow = true; cape.position.set(0, J.armL[1] - J.spine[1] + 0.04, backZ - J.spine[2] - 0.03); B.spine.add(cape);
     cape.userData.base = Float32Array.from(cg2.attributes.position.array);
